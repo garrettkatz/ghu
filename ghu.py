@@ -10,7 +10,7 @@ import torch as tr
 import torch.nn as nn
 
 class GatedHebbianUnit(nn.Module):
-    def __init__(self, layer_sizes, pathways, controller):
+    def __init__(self, layer_sizes, pathways, controller, rho=.9999):
         """
         layer_sizes[l] (dict): size of layer l
         pathways[p]: (destination, source) for pathway p
@@ -19,32 +19,35 @@ class GatedHebbianUnit(nn.Module):
         self.layer_sizes = layer_sizes
         self.pathways = pathways
         self.controller = controller
+        self.W = {p:
+            tr.zeros(layer_sizes[q], layer_sizes[r])
+            for (p, (q,r)) in pathways}
         self.old_activity = {
             name: tr.zeros(size)
             for name, size in layer_sizes.items()}
 
-    def tick(self, v):
+    def forward(self, v):
         # Extract gate values
-        l, s, d = self.controller.forward(v)
+        l, s, d = self.controller(v)
         
         # Do activation rule
         h = {
             q: d[q] * v[q]
             for q, size in self.layer_sizes.items()}
-        for c, (q, r) in self.pathways.items():
+        for p, (q, r) in self.pathways.items():
             h[q] = h[q] + s[c] * tr.mm(self.W[c], v[r])
         v_new = {q: tr.tanh(h[q]) for q in h}
         
         # Do learning rule
         for c, (q,r) in self.pathways:
             N = self.layer_sizes[r]
-            dW = (tr.arctanh(v_new[q]) - tr.mm(self.W[c], v[r])) * v[r].T / N
+            dW = (tr.arctanh(v_new[q]) - tr.mm(self.W[c], v[r])) * v[r].T / (N*rho**2)
             self.W[c] = self.W[c] + l[c] * dW
 
         # Return new activity
         return v_new
 
-class DefaultController:
+class DefaultController(nn.Module):
     """
     l, s, d: dicts = controller(v: dict)
     """
