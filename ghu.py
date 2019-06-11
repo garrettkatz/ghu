@@ -1,21 +1,23 @@
 """
 Activation rule for layer q:
-    v[q][t+1] = tanh(d[q]*v[q][t] + sum_(c,q,r) s[c]*W[c].dot(v[r][t])
-Learning rule for connection c to q from r:
-    W[c] += l[c] * (arctanh(v[q][t+1]) - W[c].dot(v[r][t])) * v[r][t].T / N
+    v[q][t+1] = tanh(d[q]*v[q][t] + sum_(p,q,r) s[p]*W[p].dot(v[r][t])
+Learning rule for pathway p to q from r:
+    W[p] += l[p] * (arctanh(v[q][t+1]) - W[p].dot(v[r][t])) * v[r][t].T / N
 """
 
 import numpy as np
 import torch as tr
 import torch.nn as nn
 
-class GHU:
-    def __init__(self, layer_sizes, connections, controller):
+class GatedHebbianUnit(nn.Module):
+    def __init__(self, layer_sizes, pathways, controller):
         """
-        l, s, d: dicts = controller(v: dict)
+        layer_sizes[l] (dict): size of layer l
+        pathways[p]: (destination, source) for pathway p
+        controller: dict of layer activity -> l,s,d gate dicts
         """
         self.layer_sizes = layer_sizes
-        self.connections = connections
+        self.pathways = pathways
         self.controller = controller
         self.old_activity = {
             name: tr.zeros(size)
@@ -29,12 +31,12 @@ class GHU:
         h = {
             q: d[q] * v[q]
             for q, size in self.layer_sizes.items()}
-        for c, (q, r) in self.connections.items():
+        for c, (q, r) in self.pathways.items():
             h[q] = h[q] + s[c] * tr.mm(self.W[c], v[r])
         v_new = {q: tr.tanh(h[q]) for q in h}
         
         # Do learning rule
-        for c, (q,r) in self.connections:
+        for c, (q,r) in self.pathways:
             N = self.layer_sizes[r]
             dW = (tr.arctanh(v_new[q]) - tr.mm(self.W[c], v[r])) * v[r].T / N
             self.W[c] = self.W[c] + l[c] * dW
