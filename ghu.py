@@ -1,6 +1,6 @@
 """
 Activation rule for layer q:
-    v[q][t+1] = tanh(d[q]*v[q][t] + sum_(p,q,r) s[p]*W[p].dot(v[r][t])
+    v[q][t+1] = tanh(sum_(p,q,r) s[p]*W[p].dot(v[r][t])
 Learning rule for pathway p to q from r:
     W[p] += l[p] * (arctanh(v[q][t+1]) - W[p].dot(v[r][t])) * v[r][t].T / N
 """
@@ -12,24 +12,24 @@ import torch.nn as nn
 class GatedHebbianUnit(nn.Module):
     def __init__(self, layer_sizes, pathways, controller):
         """
-        layer_sizes[l] (dict): size of layer l
+        layer_sizes[k] (dict): size of layer k
         pathways[p]: (destination, source) for pathway p
-        controller: dict of layer activity -> l,s,d gate dicts
+        controller: dict of layer activity -> s,l gate dicts
         """
         self.layer_sizes = layer_sizes
         self.pathways = pathways
         self.controller = controller
-        self.old_activity = {
+        self.activity = {
             name: tr.zeros(size)
             for name, size in layer_sizes.items()}
 
-    def tick(self, v):
+    def forward(self):
         # Extract gate values
-        l, s, d = self.controller.forward(v)
+        s, l = self.controller.forward(self.activity)
         
         # Do activation rule
         h = {
-            q: d[q] * v[q]
+            q: tr.zeros(size)
             for q, size in self.layer_sizes.items()}
         for c, (q, r) in self.pathways.items():
             h[q] = h[q] + s[c] * tr.mm(self.W[c], v[r])
@@ -47,10 +47,10 @@ class GatedHebbianUnit(nn.Module):
 class DefaultController:
     """
     l, s, d: dicts = controller(v: dict)
+    MLP with one hidden layer
     """
-    def __init__(self, layer_sizes, hidden_size):
-        L = len(layer_sizes)
-        num_gates = 2*L**2 + L
+    def __init__(self, layer_sizes, pathways, hidden_size):
+        num_gates = len(layer_sizes)
 
         self.layer_sizes = layer_sizes
         self.hidden_size = hidden_size
@@ -79,4 +79,8 @@ class DefaultController:
             for i, name in enumerate(self.input_names)}
 
         return l, s, d
+
+if __name__ == "__main__":
+    
+    
 
