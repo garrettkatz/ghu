@@ -72,7 +72,7 @@ class GatedHebbianUnit(nn.Module):
         for p, (q,r) in self.pathways.items():
             dW = self.rehebbian(self.W[p], self.v_old[r], self.v[q])
             if stochastic and tr.rand(1) < tr.sigmoid(l[p]):
-                    W[p] = W[p] + dW
+                W[p] = W[p] + dW
             else:
                 W[p] = W[p] + tr.sigmoid(l[p]) * dW
         
@@ -98,8 +98,7 @@ class GatedHebbianUnit(nn.Module):
             x = self.codec.encode(r, s)
             y = self.codec.encode(q, t)
             dW = self.rehebbian(self.W[p], x, y)
-            self.W[p] = self.W[p] + dW
-            
+            self.W[p] = self.W[p] + dW            
 
 class DefaultController(nn.Module):
     """
@@ -138,6 +137,14 @@ if __name__ == "__main__":
     dc = DefaultController(layer_sizes, pathways, hidden_size)
     ghu = GatedHebbianUnit(layer_sizes, pathways, dc, c)
 
+    ghu.associate([
+        (0, "0", "0"),
+        (1, "0", "0"),
+        (2, "0", "0"),
+        (0, "1", "1"),
+        (1, "1", "1"),
+        (2, "1", "1"),
+        ])
     
     a = c.encode("r0","0")
     b = c.encode("r0","1")
@@ -153,17 +160,19 @@ if __name__ == "__main__":
     
     ghu.v_old["r0"] = c.encode("r0", str(1))
     ghu.v_old["r1"] = c.encode("r1", str(1))
+    ghu.v["r0"] = c.encode("r0", str(0))
+    ghu.v["r1"] = c.encode("r1", str(0))
     g_history = []
-    for t in range(3):
-        ghu.v["r0"] = c.encode("r0", str(t % 2))
-        ghu.v["r1"] = c.encode("r1", str(t % 2))
+    for t in range(2):
+        # ghu.v["r0"] = c.encode("r0", str(t % 2))
+        # ghu.v["r1"] = c.encode("r1", str(t % 2))
         ghu.tick()
         g_history.append(ghu.controller.g)
 
-    ghu.tick()
-    g_history.append(ghu.controller.g)
-    ghu.tick()
-    g_history.append(ghu.controller.g)
+    # ghu.tick()
+    # g_history.append(ghu.controller.g)
+    # ghu.tick()
+    # g_history.append(ghu.controller.g)
 
     # e = ghu.v["r0"].sum() + ghu.v["r1"].sum()
     e = tr.cat(g_history).sum()
