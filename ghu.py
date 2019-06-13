@@ -5,16 +5,15 @@ Learning rule for pathway p to q from r:
     W[p] += l[p] * (arctanh(v[q][t+1]) - W[p].dot(v[r][t])) * v[r][t].T / N
 """
 
-import numpy as np
 import torch as tr
 import torch.nn as nn
 
 class Codec(object):
-    def __init__(self, layer_sizes, symbols, rho = .9999):
+    def __init__(self, layer_sizes, symbols, rho = .999):
         self.rho = rho
         self.lookup = {
             k: {
-                s: rho * tr.tensor(np.sign(np.random.randn(size,1)))
+                s: (rho * tr.sign(tr.randn(size))).requires_grad_()
                 for s in symbols}
             for k, size in layer_sizes.items()}
     def encode(self, layer, symbol):
@@ -41,35 +40,57 @@ class GatedHebbianUnit(nn.Module):
         self.codec = codec
         self.W = {p:
             tr.zeros(layer_sizes[q], layer_sizes[r])
-            for (p, (q,r)) in pathways}
+            for p, (q,r) in pathways.items()}
         self.v = {
             q: tr.zeros(size)
             for q, size in layer_sizes.items()}
+        self.v_old = {
+            q: tr.zeros(size)
+            for q, size in layer_sizes.items()}
 
-    def rehebbian(W, x, y):
+    def rehebbian(self, W, x, y):
         r = self.codec.rho
-        N = x.shape[0]
-        return (tr.arctanh(y) - tr.mm(W, x)) * x.T / (N * r**2)
+        N = x.nelement()
+        ay = 0.5*(tr.log(1 + y) - tr.log(1 - y))
+        dW = tr.ger(ay - tr.mv(W, x), x) / (N * r**2)
+        return dW
 
-    def tick(self):
+    def tick(self, stochastic=True):
         # Extract gate values
-        s, l = self.controller(self.v)
+        self.controller.tick(self.v)
+        s, l = self.controller.gates()
+
+        print('tick')
+        print(self.v_old)
+        print(self.v)
+        print(s, l)
+        for p, (q,r) in self.pathways.items():
+            print((q,r), self.W[p].detach().numpy().max(), self.W[p].detach().numpy().min())
         
-        # Do activation rule
-        h = {
+        # Compute learning rule
+        W = dict(self.W)
+        for p, (q,r) in self.pathways.items():
+            dW = self.rehebbian(self.W[p], self.v_old[r], self.v[q])
+            if stochastic and tr.rand(1) < tr.sigmoid(l[p]):
+                    W[p] = W[p] + dW
+            else:
+                W[p] = W[p] + tr.sigmoid(l[p]) * dW
+        
+        # Compute activation rule
+        v = {
             q: tr.zeros(size)
             for q, size in self.layer_sizes.items()}
         for p, (q, r) in self.pathways.items():
-            h[q] = h[q] + s[p] * tr.mm(self.W[p], v[r])
-        v = {q: tr.tanh(h[q]) for q in h}
+            if stochastic and tr.rand(1) < tr.sigmoid(s[p]):
+                v[q] = v[q] + tr.mv(self.W[p], self.v[r])
+            else:
+                v[q] = v[q] + tr.sigmoid(s[p]) * tr.mv(self.W[p], self.v[r])
+        v = {q: tr.tanh(v[q]) for q in v}
         
-        # Do learning rule
-        for p, (q,r) in self.pathways:
-            dW = self.rehebbian(self.W[p], self.v[r], v[q])
-            self.W[p] = self.W[p] + l[p] * dW
-
-        # Update activity
+        # Update network
+        self.v_old = self.v
         self.v = v
+        self.W = W
 
     def associate(self, associations):
         for p, s, t in associations:
@@ -82,37 +103,35 @@ class GatedHebbianUnit(nn.Module):
 
 class DefaultController(nn.Module):
     """
-    l, s, d: dicts = controller(v: dict)
-    MLP with one hidden layer
+    s, l: dicts = controller(v: dict)
+    MLP with one recurrent hidden layer
     """
     def __init__(self, layer_sizes, pathways, hidden_size):
         super(DefaultController, self).__init__()
-        num_gates = 2*len(pathways)
-        self.pathways = pathways
-        self.hidden_size = hidden_size
-        self.inputs = nn.ModuleDict({
-            k: nn.Linear(layer_size, hidden_size)
-            for k, layer_size in layer_sizes.items()})
-        self.output = nn.Linear(hidden_size, num_gates)
+        self.input_keys = layer_sizes.keys()
+        self.pathway_keys = pathways.keys()
+        self.rnn = nn.RNN(sum(layer_sizes.values()), hidden_size)
+        self.readout = nn.Linear(hidden_size, 2*len(pathways))
+        self.h = tr.zeros(1,1,hidden_size, requires_grad=True)
+        self.g = tr.zeros(2*len(pathways))
 
-    def forward(self, v):
-        h = tr.zeros(self.hidden_size)
-        for q, linear in self.inputs.items():
-            h = h + linear(v[q])
-        gates = self.output(tr.tanh(h))
+    def tick(self, v):
+        _, self.h = self.rnn(
+            tr.cat([v[k] for k in self.input_keys]).view(1,1,-1),
+            self.h)
+        self.g = self.readout(self.h).squeeze()
 
-        s = {p: gates[i]
-            for i, p in enumerate(self.pathways.keys())}
-        l = {p: gates[len(self.pathways)+i]
-            for i, p in enumerate(self.pathways.keys())}
-
+    def gates(self):
+        s, l = {}, {}
+        for i, p in enumerate(self.pathway_keys):
+            s[p], l[p] = self.g[i], self.g[len(self.pathway_keys)+i]
         return s, l
 
 if __name__ == "__main__":
     
     
-    layer_sizes = {"r0": 10, "r1":20}
-    pathways = [(0,("r0","r0")), (1, ("r1","r0"))]
+    layer_sizes = {"r0": 3, "r1":3}
+    pathways = {0:("r0","r0"), 1:("r1","r0"), 2:("r1","r1")}
     hidden_size = 5
 
     c = Codec(layer_sizes, "01")
@@ -131,6 +150,29 @@ if __name__ == "__main__":
     print(y == "1")
 
     print(c.parameters())
+    
+    ghu.v_old["r0"] = c.encode("r0", str(1))
+    ghu.v_old["r1"] = c.encode("r1", str(1))
+    g_history = []
+    for t in range(3):
+        ghu.v["r0"] = c.encode("r0", str(t % 2))
+        ghu.v["r1"] = c.encode("r1", str(t % 2))
+        ghu.tick()
+        g_history.append(ghu.controller.g)
 
-    
-    
+    ghu.tick()
+    g_history.append(ghu.controller.g)
+    ghu.tick()
+    g_history.append(ghu.controller.g)
+
+    # e = ghu.v["r0"].sum() + ghu.v["r1"].sum()
+    e = tr.cat(g_history).sum()
+    print(e)
+    e.backward()
+    print("codec")
+    for p in c.parameters():
+        print(p.grad)
+    print("cntrl")
+    for p in ghu.parameters():
+        print(p.grad)
+    print(ghu)
