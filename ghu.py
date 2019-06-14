@@ -4,7 +4,7 @@ Activation rule for layer q:
 Learning rule for pathway p to q from r:
     W[p] += l[p] * (arctanh(v[q][t+1]) - W[p].dot(v[r][t])) * v[r][t].T / N
 """
-
+import numpy as np
 import torch as tr
 import torch.nn as nn
 
@@ -53,7 +53,8 @@ class GatedHebbianUnit(nn.Module):
         N = x.nelement()
         # ay = 0.5*(tr.log(1 + y) - tr.log(1 - y))
         # dW = tr.ger(ay - tr.mv(W, x), x) / (N * r**2)
-        dW = tr.ger(y - tr.mv(W, x), x) / (N * r**2)
+        ar = 0.5*(np.log(1. + r) - np.log(1. - r))
+        dW = tr.ger(ar*y - tr.mv(W, x), x) / (N * r**2)
         return dW
 
     def tick(self, stochastic=True):

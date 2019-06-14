@@ -10,7 +10,7 @@ if __name__ == "__main__":
     
     num_symbols = 3
     layer_sizes = {"rinp": 64, "rout":64}
-    hidden_size = 5
+    hidden_size = 16
 
     symbols = [str(a) for a in range(num_symbols)]
     pathways, associations = default_initializer(
