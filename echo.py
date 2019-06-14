@@ -8,8 +8,8 @@ from ghu import *
 
 if __name__ == "__main__":
     
-    num_symbols = 5
-    layer_sizes = {"rinp": 5, "rout":5}
+    num_symbols = 3
+    layer_sizes = {"rinp": 64, "rout":64}
     hidden_size = 5
 
     symbols = [str(a) for a in range(num_symbols)]
@@ -19,9 +19,16 @@ if __name__ == "__main__":
     c = Codec(layer_sizes, symbols)
     dc = DefaultController(layer_sizes, pathways, hidden_size)
 
+    # Sanity check
+    ghu = GatedHebbianUnit(layer_sizes, pathways, dc, c)
+    ghu.associate(associations)
+    for p,s,t in associations:
+        q,r = ghu.pathways[p]
+        assert(c.decode(q, tr.mv( ghu.W[p], c.encode(r, s))) == t)
+    
     # Optimization settings
-    num_epochs = 20
-    num_episodes = 100
+    num_epochs = 100
+    num_episodes = 200
     max_time = 5
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
@@ -68,10 +75,12 @@ if __name__ == "__main__":
                 if not did_echo:
                     if out == separator: r = .5
                     elif out == echo_symbol: r = 1.
-                    else: r = -.5
+                    elif out in symbols: r = -.5
+                    else: r = -1.
                 else:
                     if out == separator: r = .5
-                    else: r = -.5
+                    elif out in symbols: r = -.5
+                    else: r = -1.
                 if out == echo_symbol: did_echo = True
                 
                 # Update records
@@ -81,10 +90,10 @@ if __name__ == "__main__":
             if episode < 5:
                 print("Epoch %d, episode %d: echo %s -> %s" % (epoch, episode, echo_symbol, output_stream))
 
-        # Compute returns
+        # Compute returns (excludes current step since gates affect next step)
         returns = rewards.sum(axis=1)[:,np.newaxis] - rewards.cumsum(axis=1)
+        avg_rewards[epoch] = returns[:,0].mean()
         returns -= returns.mean(axis=0) # baseline
-        avg_rewards[epoch] = rewards[:,-1].sum()
         
         # Accumulate policy gradient
         for e in range(num_episodes):
@@ -95,7 +104,7 @@ if __name__ == "__main__":
                 (g * pr * r).sum().backward(retain_graph=True)
         
         # Policy update
-        for model in [c, dc]:
+        for model in [dc]:
             for p in model.parameters():
                 grad_norms[epoch] += (p.grad**2).sum() # Get gradient norm
                 p.data += p.grad * learning_rate # Take ascent step

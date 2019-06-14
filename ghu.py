@@ -71,6 +71,7 @@ class GatedHebbianUnit(nn.Module):
         # Compute learning rule
         W = dict(self.W)
         for p, (q,r) in self.pathways.items():
+            continue
             dW = self.rehebbian(self.W[p], self.v_old[r], self.v[q])
             W[p] = W[p] + l[p] * dW
         
@@ -79,7 +80,7 @@ class GatedHebbianUnit(nn.Module):
             q: tr.zeros(size)
             for q, size in self.layer_sizes.items()}
         for p, (q, r) in self.pathways.items():
-            v[q] = v[q] + tr.mv(self.W[p], self.v[r])
+            v[q] = v[q] + s[p] * tr.mv(self.W[p], self.v[r])
         v = {q: tr.tanh(v[q]) for q in v}
         
         # Update network
