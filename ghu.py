@@ -126,6 +126,27 @@ class DefaultController(nn.Module):
             s[p], l[p] = self.g[i], self.g[len(self.pathway_keys)+i]
         return s, l
 
+def turing_initializer(register_names, num_addresses):
+
+    # symbols
+    pathways = {
+        q+"<"+r: (q,r)
+        for q in ["m"] + register_names
+        for r in ["m"] + register_names}
+    associations = [(p,a,a)
+        for p in pathways.keys()
+        for a in range(num_addresses)]
+
+    # tape shifts
+    pathways.update({k: ("m","m") for k in ["inc","dec"]})
+    associations += [
+        (k, str(a), str((a+x) % num_addresses))
+        for k,x in [("inc",1), ("dec",-1)]
+        for a in range(num_addresses)]
+
+    return pathways, associations
+
+
 if __name__ == "__main__":
     
     
@@ -185,3 +206,10 @@ if __name__ == "__main__":
     for p in ghu.parameters():
         print(p.grad)
     print(ghu)
+
+    pathways, associations = turing_initializer(["r0","r1"], 3)
+    for p in pathways:
+        print(p, pathways[p])
+        for p1,a,b in associations:
+            if p1 == p:
+                print(" %s -> %s"% (a,b))
