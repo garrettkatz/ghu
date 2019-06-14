@@ -51,40 +51,35 @@ class GatedHebbianUnit(nn.Module):
     def rehebbian(self, W, x, y):
         r = self.codec.rho
         N = x.nelement()
-        ay = 0.5*(tr.log(1 + y) - tr.log(1 - y))
-        dW = tr.ger(ay - tr.mv(W, x), x) / (N * r**2)
+        # ay = 0.5*(tr.log(1 + y) - tr.log(1 - y))
+        # dW = tr.ger(ay - tr.mv(W, x), x) / (N * r**2)
+        dW = tr.ger(y - tr.mv(W, x), x) / (N * r**2)
         return dW
 
     def tick(self, stochastic=True):
         # Extract gate values
         self.controller.tick(self.v)
-        s, l = self.controller.gates()
+        s, l = self.controller.gates(stochastic)
 
-        print('tick')
-        print(self.v_old)
-        print(self.v)
-        print(s, l)
-        for p, (q,r) in self.pathways.items():
-            print((q,r), self.W[p].detach().numpy().max(), self.W[p].detach().numpy().min())
+        # print('tick')
+        # print(self.v_old)
+        # print(self.v)
+        # print(s, l)
+        # for p, (q,r) in self.pathways.items():
+        #     print((q,r), self.W[p].detach().numpy().max(), self.W[p].detach().numpy().min())
         
         # Compute learning rule
         W = dict(self.W)
         for p, (q,r) in self.pathways.items():
             dW = self.rehebbian(self.W[p], self.v_old[r], self.v[q])
-            if stochastic and tr.rand(1) < tr.sigmoid(l[p]):
-                W[p] = W[p] + dW
-            else:
-                W[p] = W[p] + tr.sigmoid(l[p]) * dW
+            W[p] = W[p] + l[p] * dW
         
         # Compute activation rule
         v = {
             q: tr.zeros(size)
             for q, size in self.layer_sizes.items()}
         for p, (q, r) in self.pathways.items():
-            if stochastic and tr.rand(1) < tr.sigmoid(s[p]):
-                v[q] = v[q] + tr.mv(self.W[p], self.v[r])
-            else:
-                v[q] = v[q] + tr.sigmoid(s[p]) * tr.mv(self.W[p], self.v[r])
+            v[q] = v[q] + tr.mv(self.W[p], self.v[r])
         v = {q: tr.tanh(v[q]) for q in v}
         
         # Update network
@@ -109,39 +104,51 @@ class DefaultController(nn.Module):
         super(DefaultController, self).__init__()
         self.input_keys = layer_sizes.keys()
         self.pathway_keys = pathways.keys()
+        self.hidden_size = hidden_size
         self.rnn = nn.RNN(sum(layer_sizes.values()), hidden_size)
         self.readout = nn.Linear(hidden_size, 2*len(pathways))
-        self.h = tr.zeros(1,1,hidden_size, requires_grad=True)
-        self.g = tr.zeros(2*len(pathways))
+        self.reset()
+    
+    def reset(self):
+        self.h = tr.zeros(1,1,self.hidden_size)
+        self.g = tr.zeros(2*len(self.pathway_keys))
 
     def tick(self, v):
         _, self.h = self.rnn(
             tr.cat([v[k] for k in self.input_keys]).view(1,1,-1),
             self.h)
         self.g = self.readout(self.h).squeeze()
+        self.p = tr.sigmoid(self.g)
+        self.a = (tr.rand_like(self.p) < self.p).detach().float()
 
-    def gates(self):
+    def gates(self, stochastic=True):
+        pi = self.a if stochastic else self.p
         s, l = {}, {}
         for i, p in enumerate(self.pathway_keys):
-            s[p], l[p] = self.g[i], self.g[len(self.pathway_keys)+i]
+            s[p], l[p] = pi[i], pi[len(self.pathway_keys)+i]
         return s, l
+
+def default_initializer(register_names, symbols):
+    pathways = {
+        q+"<"+r: (q,r)
+        for q in register_names
+        for r in register_names}
+    associations = [(p,a,a)
+        for p in pathways.keys()
+        for a in symbols]
+    return pathways, associations
 
 def turing_initializer(register_names, num_addresses):
 
-    # symbols
-    pathways = {
-        q+"<"+r: (q,r)
-        for q in ["m"] + register_names
-        for r in ["m"] + register_names}
-    associations = [(p,a,a)
-        for p in pathways.keys()
-        for a in range(num_addresses)]
+    # defaults
+    symbols = map(str, range(num_addresses))
+    pathways, associations = default_initializer(["m"] + register_names, symbols)
 
     # tape shifts
-    pathways.update({k: ("m","m") for k in ["inc","dec"]})
+    pathways.update({k: ("m","m") for k in ["inc-m","dec-m"]})
     associations += [
         (k, str(a), str((a+x) % num_addresses))
-        for k,x in [("inc",1), ("dec",-1)]
+        for k,x in [("inc-m",1), ("dec-m",-1)]
         for a in range(num_addresses)]
 
     return pathways, associations
