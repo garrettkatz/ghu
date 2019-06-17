@@ -3,7 +3,7 @@ Echo input (rinp) at output (rout)
 """
 import numpy as np
 import torch as tr
-import matplotlib.pyplot as pt
+# import matplotlib.pyplot as pt
 from ghu import *
 
 if __name__ == "__main__":

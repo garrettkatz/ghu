@@ -54,7 +54,8 @@ class GatedHebbianUnit(nn.Module):
         # ay = 0.5*(tr.log(1 + y) - tr.log(1 - y))
         # dW = tr.ger(ay - tr.mv(W, x), x) / (N * r**2)
         ar = 0.5*(np.log(1. + r) - np.log(1. - r))
-        dW = tr.ger(ar*y - tr.mv(W, x), x) / (N * r**2)
+        arr = ar / r
+        dW = tr.ger(arr*y - tr.mv(W, x), x) / (N * r**2)
         return dW
 
     def tick(self, stochastic=True):
