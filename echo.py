@@ -28,7 +28,7 @@ if __name__ == "__main__":
     
     # Optimization settings
     num_epochs = 100
-    num_episodes = 200
+    num_episodes = 50
     max_time = 5
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
@@ -71,17 +71,22 @@ if __name__ == "__main__":
                 # print(dc.a)
                 # print(ghu.v)
                 
-                # Assess reward
-                if not did_echo:
-                    if out == separator: r = .5
-                    elif out == echo_symbol: r = 1.
-                    elif out in symbols: r = -.5
-                    else: r = -1.
-                else:
-                    if out == separator: r = .5
-                    elif out in symbols: r = -.5
-                    else: r = -1.
-                if out == echo_symbol: did_echo = True
+                # # Assess reward
+                # if not did_echo:
+                #     if out == separator: r = .5
+                #     elif out == echo_symbol: r = 1.
+                #     elif out in symbols: r = -.5
+                #     else: r = -1.
+                # else:
+                #     if out == separator: r = .5
+                #     elif out in symbols: r = -.5
+                #     else: r = -1.
+                # if out == echo_symbol: did_echo = True
+                
+                # Reward: penalize mistakes
+                r = 0.
+                if t == 1 and out != echo_symbol: r = -1.
+                if t != 1 and out != separator: r = -1.
                 
                 # Update records
                 gate_streams[episode].append((dc.g, dc.p, dc.a))
@@ -98,7 +103,8 @@ if __name__ == "__main__":
         # Accumulate policy gradient
         for e in range(num_episodes):
             for t in range(max_time):
-                r = tr.tensor(returns[e,t])
+                # r = tr.tensor(returns[e,t])
+                r = tr.tensor(returns[e,-1])
                 g, p, a = gate_streams[e][t]
                 pr = a - p.detach()
                 (g * pr * r).sum().backward(retain_graph=True)

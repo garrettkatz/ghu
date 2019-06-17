@@ -63,13 +63,6 @@ class GatedHebbianUnit(nn.Module):
         self.controller.tick(self.v)
         s, l = self.controller.gates(stochastic)
 
-        # print('tick')
-        # print(self.v_old)
-        # print(self.v)
-        # print(s, l)
-        # for p, (q,r) in self.pathways.items():
-        #     print((q,r), self.W[p].detach().numpy().max(), self.W[p].detach().numpy().min())
-        
         # Compute learning rule
         W = dict(self.W)
         for p, (q,r) in self.pathways.items():
