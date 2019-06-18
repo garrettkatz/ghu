@@ -3,8 +3,10 @@ Echo input (rinp) at output (rout)
 """
 import numpy as np
 import torch as tr
-# import matplotlib.pyplot as pt
+import matplotlib.pyplot as pt
 from ghu import *
+from codec import Codec
+from controller import Controller
 
 if __name__ == "__main__":
     
@@ -16,101 +18,78 @@ if __name__ == "__main__":
     pathways, associations = default_initializer(
         layer_sizes.keys(), symbols)
 
-    c = Codec(layer_sizes, symbols)
-    dc = DefaultController(layer_sizes, pathways, hidden_size)
+    codec = Codec(layer_sizes, symbols)
+    controller = Controller(layer_sizes, pathways, hidden_size)
 
     # Sanity check
-    ghu = GatedHebbianUnit(layer_sizes, pathways, dc, c)
+    ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec)
     ghu.associate(associations)
     for p,s,t in associations:
         q,r = ghu.pathways[p]
-        assert(c.decode(q, tr.mv( ghu.W[p], c.encode(r, s))) == t)
+        assert(codec.decode(q, tr.mv( ghu.W[0][p], codec.encode(r, s))) == t)
     
     # Optimization settings
-    num_epochs = 100
-    num_episodes = 50
-    max_time = 5
+    num_epochs = 50
+    num_episodes = 100
+    max_time = 3
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
-    learning_rate = 0.01
+    learning_rate = 1
     
     # Train
     for epoch in range(num_epochs):
 
-        # Record "actions" and rewards
-        gate_streams = []
-        rewards = np.empty((num_episodes, max_time))
+        # Record rewards
+        rewards = np.empty(num_episodes)
 
         for episode in range(num_episodes):
 
-            # Set up records
-            gate_streams.append([])
-        
             # Randomly choose echo symbol (excluding 0 separator)
             separator = symbols[0]
             echo_symbol = np.random.choice(symbols[1:])
             
             # Initialize a GHU with controller/codec and default associations
-            ghu = GatedHebbianUnit(layer_sizes, pathways, dc, c)
+            ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec)
             ghu.associate(associations)
-            dc.reset()
 
-            # Stream in echo symbol followed by separator
-            ghu.v["rinp"] = c.encode("rinp", separator)
-            ghu.v["rout"] = c.encode("rout", separator)
-            did_echo = False
-            output_stream = []
+            # Initialize layers
+            ghu.v[0]["rinp"] = codec.encode("rinp", echo_symbol)
+            ghu.v[0]["rout"] = codec.encode("rout", separator)
+
+            # Run GHU
+            outputs = []
             for t in range(max_time):
 
                 ghu.tick() # Take a step
-                ghu.v["rinp"] = c.encode("rinp",
-                    echo_symbol if t == 0 else separator) # Force input
-                out = c.decode("rout", ghu.v["rout"]) # Read output
-                output_stream.append(out)
-                # print(dc.p)
-                # print(dc.a)
-                # print(ghu.v)
-                
-                # # Assess reward
-                # if not did_echo:
-                #     if out == separator: r = .5
-                #     elif out == echo_symbol: r = 1.
-                #     elif out in symbols: r = -.5
-                #     else: r = -1.
-                # else:
-                #     if out == separator: r = .5
-                #     elif out in symbols: r = -.5
-                #     else: r = -1.
-                # if out == echo_symbol: did_echo = True
-                
-                # Reward: penalize mistakes
-                r = 0.
-                if t == 1 and out != echo_symbol: r = -1.
-                if t != 1 and out != separator: r = -1.
-                
-                # Update records
-                gate_streams[episode].append((dc.g, dc.p, dc.a))
-                rewards[episode, t] = r
+                out = codec.decode("rout", ghu.v[t]["rout"]) # Read output
+                outputs.append(out)
+
+            # Assess reward
+            outputs = np.array(outputs)
+            reward = -(1. - (outputs == echo_symbol).sum())**2
+            reward -= (len(outputs)-1 - (outputs == separator).sum())**2 / (len(outputs))
+            rewards[episode] = reward
             
             if episode < 5:
-                print("Epoch %d, episode %d: echo %s -> %s" % (epoch, episode, echo_symbol, output_stream))
+                print("Epoch %d, episode %d: echo %s -> %s" % (epoch, episode, echo_symbol, outputs))
 
-        # Compute returns (excludes current step since gates affect next step)
-        returns = rewards.sum(axis=1)[:,np.newaxis] - rewards.cumsum(axis=1)
-        avg_rewards[epoch] = returns[:,0].mean()
-        returns -= returns.mean(axis=0) # baseline
+        # Compute returns (reward - average)
+        avg_rewards[epoch] = rewards.mean()
+        returns = tr.tensor(rewards - rewards.mean()).float()
         
         # Accumulate policy gradient
+        J = 0.
         for e in range(num_episodes):
+            r = returns[e]
             for t in range(max_time):
-                # r = tr.tensor(returns[e,t])
-                r = tr.tensor(returns[e,-1])
-                g, p, a = gate_streams[e][t]
-                pr = a - p.detach()
-                (g * pr * r).sum().backward(retain_graph=True)
+                for i in range(len(ghu.g[t])):
+                    if ghu.a[t][i] > .5: p = ghu.g[t][i]
+                    if ghu.a[t][i] < .5: p = 1. - ghu.g[t][i]
+                    J += r * tr.log(p)
+        J.backward(retain_graph=True)
         
         # Policy update
-        for model in [dc]:
+        for model in [controller]:
             for p in model.parameters():
                 grad_norms[epoch] += (p.grad**2).sum() # Get gradient norm
                 p.data += p.grad * learning_rate # Take ascent step

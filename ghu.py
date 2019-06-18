@@ -7,26 +7,10 @@ Learning rule for pathway p to q from r:
 import numpy as np
 import torch as tr
 import torch.nn as nn
+from codec import Codec
+from controller import Controller
 
-class Codec(object):
-    def __init__(self, layer_sizes, symbols, rho = .999):
-        self.rho = rho
-        self.lookup = {
-            k: {
-                s: (rho * tr.sign(tr.randn(size))).requires_grad_()
-                for s in symbols}
-            for k, size in layer_sizes.items()}
-    def encode(self, layer, symbol):
-        return self.lookup[layer][symbol]
-    def decode(self, layer, pattern):
-        for s, p in self.lookup[layer].items():
-            if (p * pattern > 0).all(): return s
-    def parameters(self):
-        for lk in self.lookup.values():
-            for p in lk.values():
-                yield p
-
-class GatedHebbianUnit(nn.Module):
+class GatedHebbianUnit(object):
     def __init__(self, layer_sizes, pathways, controller, codec):
         """
         layer_sizes[k] (dict): size of layer k
@@ -38,91 +22,63 @@ class GatedHebbianUnit(nn.Module):
         self.pathways = pathways
         self.controller = controller
         self.codec = codec
-        self.W = {p:
-            tr.zeros(layer_sizes[q], layer_sizes[r])
-            for p, (q,r) in pathways.items()}
-        self.v = {
-            q: tr.zeros(size)
-            for q, size in layer_sizes.items()}
-        self.v_old = {
-            q: tr.zeros(size)
-            for q, size in layer_sizes.items()}
+        self.W = {0:
+            {p: tr.zeros(layer_sizes[q], layer_sizes[r])
+                for p, (q,r) in pathways.items()}}
+        self.v = {t:
+            {q: tr.zeros(size)
+                for q, size in layer_sizes.items()}
+            for t in [-1, 0]}
+        self.h = {-1: tr.zeros(1,1,controller.hidden_size)}
+        self.s = {}
+        self.l = {}
+        self.g = {}
+        self.a = {}
 
     def rehebbian(self, W, x, y):
         r = self.codec.rho
-        N = x.nelement()
-        # ay = 0.5*(tr.log(1 + y) - tr.log(1 - y))
-        # dW = tr.ger(ay - tr.mv(W, x), x) / (N * r**2)
-        ar = 0.5*(np.log(1. + r) - np.log(1. - r))
-        arr = ar / r
-        dW = tr.ger(arr*y - tr.mv(W, x), x) / (N * r**2)
+        n = x.nelement() * r**2
+        g = 0.5*(np.log(1. + r) - np.log(1. - r)) / r
+        dW = tr.ger(g*y - tr.mv(W, x), x) / n
         return dW
 
-    def tick(self, stochastic=True):
-        # Extract gate values
-        self.controller.tick(self.v)
-        s, l = self.controller.gates(stochastic)
+    def tick(self, num_steps=1, stochastic=True):
+        # detach gate values so that they are treated as actions on environment
 
-        # Compute learning rule
-        W = dict(self.W)
-        for p, (q,r) in self.pathways.items():
-            continue
-            dW = self.rehebbian(self.W[p], self.v_old[r], self.v[q])
-            W[p] = W[p] + l[p] * dW
+        st = int(stochastic) # index into s, l
         
-        # Compute activation rule
-        v = {
-            q: tr.zeros(size)
-            for q, size in self.layer_sizes.items()}
-        for p, (q, r) in self.pathways.items():
-            v[q] = v[q] + s[p] * tr.mv(self.W[p], self.v[r])
-        v = {q: tr.tanh(v[q]) for q in v}
+        T = len(self.g)
+        for t in range(T, T+num_steps):
+
+                # Controller
+                ctrl = self.controller(self.v[t], self.h[t-1])
+                self.s[t], self.l[t], self.g[t], self.a[t], self.h[t] = ctrl
         
-        # Update network
-        self.v_old = self.v
-        self.v = v
-        self.W = W
+                # Associative learning
+                self.W[t+1] = dict(self.W[t])
+                for p, (q,r) in self.pathways.items():
+                    continue
+                    dW = self.rehebbian(self.W[t][p], self.v[t-1][r], self.v[t][q])
+                    l = self.l[t][p][st].detach()
+                    self.W[t+1][p] = self.W[t][p] + l * dW
+                
+                # Associative recall
+                a = { # net input
+                    q: tr.zeros(size)
+                    for q, size in self.layer_sizes.items()}
+                for p, (q, r) in self.pathways.items():
+                    s = self.s[t][p][st].detach()
+                    a[q] += s * tr.mv(self.W[t][p], self.v[t][r])
+                self.v[t+1] = {q: tr.tanh(a[q]) for q in a}
 
     def associate(self, associations):
+        T = len(self.W)-1
         for p, s, t in associations:
             q, r = self.pathways[p]
             x = self.codec.encode(r, s)
             y = self.codec.encode(q, t)
-            dW = self.rehebbian(self.W[p], x, y)
-            self.W[p] = self.W[p] + dW            
-
-class DefaultController(nn.Module):
-    """
-    s, l: dicts = controller(v: dict)
-    MLP with one recurrent hidden layer
-    """
-    def __init__(self, layer_sizes, pathways, hidden_size):
-        super(DefaultController, self).__init__()
-        self.input_keys = layer_sizes.keys()
-        self.pathway_keys = pathways.keys()
-        self.hidden_size = hidden_size
-        self.rnn = nn.RNN(sum(layer_sizes.values()), hidden_size)
-        self.readout = nn.Linear(hidden_size, 2*len(pathways))
-        self.reset()
-    
-    def reset(self):
-        self.h = tr.zeros(1,1,self.hidden_size)
-        self.g = tr.zeros(2*len(self.pathway_keys))
-
-    def tick(self, v):
-        _, self.h = self.rnn(
-            tr.cat([v[k] for k in self.input_keys]).view(1,1,-1),
-            self.h)
-        self.g = self.readout(self.h).squeeze()
-        self.p = tr.sigmoid(self.g)
-        self.a = (tr.rand_like(self.p) < self.p).detach().float()
-
-    def gates(self, stochastic=True):
-        pi = self.a if stochastic else self.p
-        s, l = {}, {}
-        for i, p in enumerate(self.pathway_keys):
-            s[p], l[p] = pi[i], pi[len(self.pathway_keys)+i]
-        return s, l
+            dW = self.rehebbian(self.W[T][p], x, y)
+            self.W[T][p] = self.W[T][p] + dW
 
 def default_initializer(register_names, symbols):
     pathways = {
@@ -149,7 +105,6 @@ def turing_initializer(register_names, num_addresses):
 
     return pathways, associations
 
-
 if __name__ == "__main__":
     
     
@@ -157,9 +112,9 @@ if __name__ == "__main__":
     pathways = {0:("r0","r0"), 1:("r1","r0"), 2:("r1","r1")}
     hidden_size = 5
 
-    c = Codec(layer_sizes, "01")
-    dc = DefaultController(layer_sizes, pathways, hidden_size)
-    ghu = GatedHebbianUnit(layer_sizes, pathways, dc, c)
+    codec = Codec(layer_sizes, "01")
+    controller = Controller(layer_sizes, pathways, hidden_size)
+    ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec)
 
     ghu.associate([
         (0, "0", "0"),
@@ -170,45 +125,35 @@ if __name__ == "__main__":
         (2, "1", "1"),
         ])
     
-    a = c.encode("r0","0")
-    b = c.encode("r0","1")
+    a = codec.encode("r0","0")
+    b = codec.encode("r0","1")
     print(a)
-    x = c.decode("r0",a)
+    x = codec.decode("r0",a)
     print(x == "0")
     print(x == "1")
-    y = c.decode("r0",b)
+    y = codec.decode("r0",b)
     print(y == "0")
     print(y == "1")
 
-    print(c.parameters())
+    print(codec.parameters())
     
-    ghu.v_old["r0"] = c.encode("r0", str(1))
-    ghu.v_old["r1"] = c.encode("r1", str(1))
-    ghu.v["r0"] = c.encode("r0", str(0))
-    ghu.v["r1"] = c.encode("r1", str(0))
-    g_history = []
-    for t in range(2):
-        # ghu.v["r0"] = c.encode("r0", str(t % 2))
-        # ghu.v["r1"] = c.encode("r1", str(t % 2))
-        ghu.tick()
-        g_history.append(ghu.controller.g)
+    ghu.v[-1]["r0"] = codec.encode("r0", str(1))
+    ghu.v[-1]["r1"] = codec.encode("r1", str(1))
+    ghu.v[0]["r0"] = codec.encode("r0", str(0))
+    ghu.v[0]["r1"] = codec.encode("r1", str(0))
+    ghu.tick(num_steps=2)
 
-    # ghu.tick()
-    # g_history.append(ghu.controller.g)
-    # ghu.tick()
-    # g_history.append(ghu.controller.g)
-
-    # e = ghu.v["r0"].sum() + ghu.v["r1"].sum()
-    e = tr.cat(g_history).sum()
-    print(e)
+    e = ghu.g[len(ghu.g)-1].sum()
     e.backward()
+    
     print("codec")
-    for p in c.parameters():
+    print(codec)
+    for p in codec.parameters():
         print(p.grad)
-    print("cntrl")
-    for p in ghu.parameters():
+    print("ctrl")
+    print(controller)
+    for p in controller.parameters():
         print(p.grad)
-    print(ghu)
 
     pathways, associations = turing_initializer(["r0","r1"], 3)
     for p in pathways:
