@@ -18,7 +18,7 @@ if __name__ == "__main__":
     pathways, associations = default_initializer(
         layer_sizes.keys(), symbols)
 
-    codec = Codec(layer_sizes, symbols)
+    codec = Codec(layer_sizes, symbols, rho=.9)
     controller = Controller(layer_sizes, pathways, hidden_size)
 
     # Sanity check
