@@ -29,9 +29,9 @@ if __name__ == "__main__":
         assert(codec.decode(q, tr.mv( ghu.W[0][p], codec.encode(r, s))) == t)
     
     # Optimization settings
-    num_epochs = 50
+    num_epochs = 100
     num_episodes = 100
-    max_time = 3
+    max_time = 2
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
     learning_rate = 1
@@ -71,7 +71,7 @@ if __name__ == "__main__":
             rewards[episode] = reward
             
             if episode < 5:
-                print("Epoch %d, episode %d: echo %s -> %s" % (epoch, episode, echo_symbol, outputs))
+                print("Epoch %d, episode %d: echo %s -> %s, R=%f" % (epoch, episode, echo_symbol, outputs, reward))
 
         # Compute returns (reward - average)
         avg_rewards[epoch] = rewards.mean()
@@ -87,6 +87,8 @@ if __name__ == "__main__":
                     if ghu.a[t][i] < .5: p = 1. - ghu.g[t][i]
                     J += r * tr.log(p)
         J.backward(retain_graph=True)
+        print(returns.min(), returns.max(), returns.mean())
+        print(J)
         
         # Policy update
         for model in [controller]:
@@ -96,8 +98,6 @@ if __name__ == "__main__":
                 p.grad *= 0 # Clear gradients for next epoch
         print("|grad| = %f" % grad_norms[epoch])
     
-    print(avg_rewards)
-    print(grad_norms)
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)
     pt.subplot(2,1,2)
