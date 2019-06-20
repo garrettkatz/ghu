@@ -32,7 +32,7 @@ if __name__ == "__main__":
     # Optimization settings
     num_epochs = 100
     num_episodes = 100
-    max_time = 2
+    max_time = 3
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
     learning_rate = .1
