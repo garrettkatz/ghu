@@ -58,8 +58,8 @@ class GatedHebbianUnit(object):
             self.W[t+1] = dict(self.W[t])
             for p, (q,r) in self.pathways.items():
                 dW = self.rehebbian(self.W[t][p], self.v[t-1][r], self.v[t][q])
-                l = self.l[t][p][st].detach()
-                # l = self.l[t][p][st]
+                # l = self.l[t][p][st].detach()
+                l = self.l[t][p][st]
                 self.W[t+1][p] = self.W[t][p] + l * dW
             
             # Associative recall
@@ -67,8 +67,8 @@ class GatedHebbianUnit(object):
                 q: tr.zeros(size)
                 for q, size in self.layer_sizes.items()}
             for p, (q, r) in self.pathways.items():
-                s = self.s[t][p][st].detach()
-                # s = self.s[t][p][st]
+                # s = self.s[t][p][st].detach()
+                s = self.s[t][p][st]
                 swv[q] += s * tr.mv(self.W[t][p], self.v[t][r])
             self.v[t+1] = {q: tr.tanh(swv[q]) for q in swv}
 

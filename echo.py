@@ -7,13 +7,14 @@ import matplotlib.pyplot as pt
 from ghu import *
 from codec import Codec
 from controller import Controller
+from lvd import lvd
 
 if __name__ == "__main__":
     print("*******************************************************")
     
     num_symbols = 3
     layer_sizes = {"rinp": 64, "rout":64}
-    hidden_size = 3
+    hidden_size = 16
 
     symbols = [str(a) for a in range(num_symbols)]
     pathways, associations = default_initializer(
@@ -31,11 +32,11 @@ if __name__ == "__main__":
     
     # Optimization settings
     num_epochs = 100
-    num_episodes = 100
+    num_episodes = 150
     max_time = 3
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
-    learning_rate = .1
+    learning_rate = .001
     
     # Train
     for epoch in range(num_epochs):
@@ -67,12 +68,11 @@ if __name__ == "__main__":
                 out = codec.decode("rout", ghu.v[t+1]["rout"]) # Read output
                 outputs.append(out)
 
-            # Assess reward: negative square of incorrect element counts
-            outputs = np.array(outputs)
-            reward = -(1. - (outputs == echo_symbol).sum())**2
-            reward -= (len(outputs)-1 - (outputs == separator).sum())**2 / (len(outputs))
+            # Assess reward: negative LVD after separator filtering
+            outputs = [out for out in outputs if out != separator]
+            reward = -lvd(outputs, [echo_symbol])
             rewards[episode] = reward
-            
+
             if episode < 5:
                 print("Epoch %d, episode %d: echo %s -> %s, R=%f" % (
                     epoch, episode, echo_symbol, outputs, reward))
