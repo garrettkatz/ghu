@@ -43,33 +43,34 @@ class GatedHebbianUnit(object):
         return dW
 
     def tick(self, num_steps=1, stochastic=True):
-        # detach gate values so that they are treated as actions on environment
+        # detach gates so that they are treated as actions on environment?
 
         st = int(stochastic) # index into s, l
         
         T = len(self.g)
         for t in range(T, T+num_steps):
 
-                # Controller
-                ctrl = self.controller(self.v[t], self.h[t-1])
-                self.s[t], self.l[t], self.g[t], self.a[t], self.h[t] = ctrl
-        
-                # Associative learning
-                self.W[t+1] = dict(self.W[t])
-                for p, (q,r) in self.pathways.items():
-                    continue
-                    dW = self.rehebbian(self.W[t][p], self.v[t-1][r], self.v[t][q])
-                    l = self.l[t][p][st].detach()
-                    self.W[t+1][p] = self.W[t][p] + l * dW
-                
-                # Associative recall
-                a = { # net input
-                    q: tr.zeros(size)
-                    for q, size in self.layer_sizes.items()}
-                for p, (q, r) in self.pathways.items():
-                    s = self.s[t][p][st].detach()
-                    a[q] += s * tr.mv(self.W[t][p], self.v[t][r])
-                self.v[t+1] = {q: tr.tanh(a[q]) for q in a}
+            # Controller
+            ctrl = self.controller(self.v[t], self.h[t-1])
+            self.s[t], self.l[t], self.g[t], self.a[t], self.h[t] = ctrl
+    
+            # Associative learning
+            self.W[t+1] = dict(self.W[t])
+            for p, (q,r) in self.pathways.items():
+                dW = self.rehebbian(self.W[t][p], self.v[t-1][r], self.v[t][q])
+                # l = self.l[t][p][st].detach()
+                l = self.l[t][p][st]
+                self.W[t+1][p] = self.W[t][p] + l * dW
+            
+            # Associative recall
+            swv = { # net input
+                q: tr.zeros(size)
+                for q, size in self.layer_sizes.items()}
+            for p, (q, r) in self.pathways.items():
+                # s = self.s[t][p][st].detach()
+                s = self.s[t][p][st]
+                swv[q] += s * tr.mv(self.W[t][p], self.v[t][r])
+            self.v[t+1] = {q: tr.tanh(swv[q]) for q in swv}
 
     def associate(self, associations):
         T = len(self.W)-1

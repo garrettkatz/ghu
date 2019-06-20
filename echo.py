@@ -9,10 +9,11 @@ from codec import Codec
 from controller import Controller
 
 if __name__ == "__main__":
+    print("*******************************************************")
     
     num_symbols = 3
     layer_sizes = {"rinp": 64, "rout":64}
-    hidden_size = 16
+    hidden_size = 3
 
     symbols = [str(a) for a in range(num_symbols)]
     pathways, associations = default_initializer(
@@ -34,12 +35,13 @@ if __name__ == "__main__":
     max_time = 2
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
-    learning_rate = 1
+    learning_rate = .1
     
     # Train
     for epoch in range(num_epochs):
 
-        # Record rewards
+        # Record episodes and rewards
+        ghus = []
         rewards = np.empty(num_episodes)
 
         for episode in range(num_episodes):
@@ -51,6 +53,7 @@ if __name__ == "__main__":
             # Initialize a GHU with controller/codec and default associations
             ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec)
             ghu.associate(associations)
+            ghus.append(ghu)
 
             # Initialize layers
             ghu.v[0]["rinp"] = codec.encode("rinp", echo_symbol)
@@ -61,21 +64,22 @@ if __name__ == "__main__":
             for t in range(max_time):
 
                 ghu.tick() # Take a step
-                out = codec.decode("rout", ghu.v[t]["rout"]) # Read output
+                out = codec.decode("rout", ghu.v[t+1]["rout"]) # Read output
                 outputs.append(out)
 
-            # Assess reward
+            # Assess reward: negative square of incorrect element counts
             outputs = np.array(outputs)
             reward = -(1. - (outputs == echo_symbol).sum())**2
             reward -= (len(outputs)-1 - (outputs == separator).sum())**2 / (len(outputs))
             rewards[episode] = reward
             
             if episode < 5:
-                print("Epoch %d, episode %d: echo %s -> %s, R=%f" % (epoch, episode, echo_symbol, outputs, reward))
+                print("Epoch %d, episode %d: echo %s -> %s, R=%f" % (
+                    epoch, episode, echo_symbol, outputs, reward))
 
-        # Compute returns (reward - average)
+        # Compute baselined returns (reward - average)
         avg_rewards[epoch] = rewards.mean()
-        returns = tr.tensor(rewards - rewards.mean()).float()
+        returns = tr.tensor(rewards - avg_rewards[epoch]).float()
         
         # Accumulate policy gradient
         J = 0.
@@ -83,12 +87,10 @@ if __name__ == "__main__":
             r = returns[e]
             for t in range(max_time):
                 for i in range(len(ghu.g[t])):
-                    if ghu.a[t][i] > .5: p = ghu.g[t][i]
-                    if ghu.a[t][i] < .5: p = 1. - ghu.g[t][i]
+                    if ghus[e].a[t][i] > .5: p = ghus[e].g[t][i]
+                    if ghus[e].a[t][i] < .5: p = 1. - ghus[e].g[t][i]
                     J += r * tr.log(p)
         J.backward(retain_graph=True)
-        print(returns.min(), returns.max(), returns.mean())
-        print(J)
         
         # Policy update
         for model in [controller]:
@@ -96,7 +98,7 @@ if __name__ == "__main__":
                 grad_norms[epoch] += (p.grad**2).sum() # Get gradient norm
                 p.data += p.grad * learning_rate # Take ascent step
                 p.grad *= 0 # Clear gradients for next epoch
-        print("|grad| = %f" % grad_norms[epoch])
+        print("Avg reward = %f, |grad| = %f" % (avg_rewards[epoch], grad_norms[epoch]))
     
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)
