@@ -20,11 +20,6 @@ class Controller(nn.Module):
             h)
         g = tr.sigmoid(self.readout(h).squeeze())
         a = (tr.rand_like(g) < g).float()
-        # a[len(self.pathway_keys):] = 0.
-        # a = (tr.rand_like(g) < 1.1).float()
-        # a = tr.zeros(g.shape)
-        # a[0] = 1.
-        # a[2] = 1.
         s, l = {}, {}
         for i, p in enumerate(self.pathway_keys):
             j = i + len(self.pathway_keys)

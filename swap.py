@@ -1,5 +1,5 @@
 """
-Echo input (rinp) at output (rout)
+Swap input (rinp) on output (rout) with two registers (r0, r1)
 """
 import numpy as np
 import torch as tr
@@ -12,18 +12,19 @@ from lvd import lvd
 if __name__ == "__main__":
     print("*******************************************************")
     
-    # GHU settings
-    num_symbols = 3
-    layer_sizes = {"rinp": 64, "rout":64}
+    num_symbols = 4
+    # layer_sizes = {"rinp": 64, "rout":64, "r0": 64, "r1": 64}
+    layer_sizes = {"rinp": 64, "rout":64, "r0": 64}
     hidden_size = 16
-    plastic = True
+    plastic = False
 
     symbols = [str(a) for a in range(num_symbols)]
     pathways, associations = default_initializer(
         layer_sizes.keys(), symbols)
 
     codec = Codec(layer_sizes, symbols, rho=.9)
-    controller = Controller(layer_sizes, pathways, hidden_size)
+    # controller = Controller(layer_sizes, pathways, hidden_size)
+    controller = Controller({"r0": layer_sizes["r0"]}, pathways, hidden_size) # ignore IO registers
 
     # Sanity check
     ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec)
@@ -49,9 +50,11 @@ if __name__ == "__main__":
 
         for episode in range(num_episodes):
 
-            # Randomly choose echo symbol (excluding 0 separator)
+            # Randomly choose swap symbols (excluding 0 separator)
             separator = symbols[0]
-            echo_symbol = np.random.choice(symbols[1:])
+            swap_symbols = np.random.choice(symbols[1:], size=2, replace=False)
+            # swap_symbols = np.array(symbols[1:3])
+            targets = swap_symbols[::-1]
             
             # Initialize a GHU with controller/codec and default associations
             ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec)
@@ -59,25 +62,40 @@ if __name__ == "__main__":
             ghus.append(ghu)
 
             # Initialize layers
-            ghu.v[0]["rinp"] = codec.encode("rinp", echo_symbol)
-            ghu.v[0]["rout"] = codec.encode("rout", separator)
+            for k in layer_sizes.keys():
+                ghu.v[0][k] = codec.encode(k, separator)
 
             # Run GHU
             outputs = []
             for t in range(max_time):
 
+                if t < len(swap_symbols):
+                    ghu.v[t]["rinp"] = codec.encode("rinp", swap_symbols[t])                
                 ghu.tick(plastic=plastic) # Take a step
                 out = codec.decode("rout", ghu.v[t+1]["rout"]) # Read output
                 outputs.append(out)
 
             # Assess reward: negative LVD after separator filtering
-            outputs = [out for out in outputs if out != separator]
-            reward = -lvd(outputs, [echo_symbol])
+            outputs_ = [out for out in outputs if out != separator]
+            reward = -lvd(outputs_, targets)
+            reward -= sum([ghu.a[t].sum() for t in range(max_time)]) / (max_time*len(ghu.a[0])) # favor sparse gating
             rewards[episode] = reward
 
             if episode < 5:
-                print("Epoch %d, episode %d: echo %s -> %s, R=%f" % (
-                    epoch, episode, echo_symbol, outputs, reward))
+                print("Epoch %d, episode %d: swap %s -> %s, R=%f" % (
+                    epoch, episode, list(swap_symbols), list(outputs), reward))
+            if episode == 4:
+                for t in range(max_time):
+                    print({k: codec.decode(k,ghu.v[t][k]) for k in ghu.layer_sizes})
+                    # print(ghu.a[t].numpy())
+                    hrs, hrl = [], []
+                    for i, p in enumerate(ghu.controller.pathway_keys):
+                        j = i + len(ghu.controller.pathway_keys)
+                        if ghu.a[t][i] > .5: hrs.append("s[%s]" % p)
+                        if ghu.a[t][j] > .5: hrl.append("l[%s]" % p)
+                    print(t,str(hrs))
+                    print(t,str(hrl))
+                print({k: codec.decode(k,ghu.v[max_time][k]) for k in ghu.layer_sizes})
 
         # Compute baselined returns (reward - average)
         avg_rewards[epoch] = rewards.mean()
@@ -86,6 +104,7 @@ if __name__ == "__main__":
         # Accumulate policy gradient
         J = 0.
         saturation = 0.
+        avg_a = {t:tr.zeros(len(ghus[0].a[0])) for t in range(max_time)}
         for e in range(num_episodes):
             r = returns[e]
             for t in range(max_time):
@@ -94,24 +113,38 @@ if __name__ == "__main__":
                     if ghus[e].a[t][i] < .5: p = 1. - ghus[e].g[t][i]
                     J += r * tr.log(p)
                     saturation += min(p, 1-p)
+                avg_a[t] += ghus[e].a[t]
         J.backward(retain_graph=True)
         saturation /= num_episodes * max_time * len(ghus[0].g[0])
+        for t in range(max_time):
+            avg_a[t]  = (avg_a[t] / num_episodes) > .5
         
         # Policy update
         models = [controller]
-        # grad_max = max([p.grad.abs().max() for m in models for p in m.parameters()])
-        grad_max = 1.
         for model in models:
             for p in model.parameters():
                 grad_norms[epoch] += (p.grad**2).sum() # Get gradient norm
-                p.data += p.grad * learning_rate / grad_max # Take ascent step
+                p.data += p.grad * learning_rate # Take ascent step
                 p.grad *= 0 # Clear gradients for next epoch
+
         print("Avg reward = %f, |grad| = %f, saturation=%f" % 
             (avg_rewards[epoch], grad_norms[epoch], saturation))
+        print("Actions:")
+        for t in range(max_time):
+            # print(avg_a[t].numpy())
+            hrs, hrl = [], []
+            for i, p in enumerate(ghu.controller.pathway_keys):
+                j = i + len(ghu.controller.pathway_keys)
+                if avg_a[t][i] > .5: hrs.append("s[%s]" % p)
+                if avg_a[t][j] > .5: hrl.append("l[%s]" % p)
+            print(str(hrs))
+            print(str(hrl))
     
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)
     pt.subplot(2,1,2)
     pt.plot(grad_norms)
     pt.show()
+
+
 

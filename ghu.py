@@ -42,7 +42,7 @@ class GatedHebbianUnit(object):
         dW = tr.ger(g*y - tr.mv(W, x), x) / n
         return dW
 
-    def tick(self, num_steps=1, stochastic=True):
+    def tick(self, num_steps=1, stochastic=True, detach=True, plastic=[]):
         # detach gates so that they are treated as actions on environment?
 
         st = int(stochastic) # index into s, l
@@ -57,18 +57,19 @@ class GatedHebbianUnit(object):
             # Associative learning
             self.W[t+1] = dict(self.W[t])
             for p, (q,r) in self.pathways.items():
-                dW = self.rehebbian(self.W[t][p], self.v[t-1][r], self.v[t][q])
-                # l = self.l[t][p][st].detach()
-                l = self.l[t][p][st]
-                self.W[t+1][p] = self.W[t][p] + l * dW
+                if p in plastic:
+                    dW = self.rehebbian(self.W[t][p], self.v[t-1][r], self.v[t][q])
+                    l = self.l[t][p][st]
+                    if detach: l = l.detach()
+                    self.W[t+1][p] = self.W[t][p] + l * dW
             
             # Associative recall
             swv = { # net input
                 q: tr.zeros(size)
                 for q, size in self.layer_sizes.items()}
             for p, (q, r) in self.pathways.items():
-                # s = self.s[t][p][st].detach()
                 s = self.s[t][p][st]
+                if detach: s = s.detach()
                 swv[q] += s * tr.mv(self.W[t][p], self.v[t][r])
             self.v[t+1] = {q: tr.tanh(swv[q]) for q in swv}
 
@@ -87,14 +88,14 @@ def default_initializer(register_names, symbols):
         for q in register_names
         for r in register_names}
     associations = [(p,a,a)
-        for p in pathways.keys()
+        for p in list(pathways.keys())
         for a in symbols]
     return pathways, associations
 
 def turing_initializer(register_names, num_addresses):
 
     # defaults
-    symbols = map(str, range(num_addresses))
+    symbols = list(map(str, range(num_addresses)))
     pathways, associations = default_initializer(["m"] + register_names, symbols)
 
     # tape shifts
