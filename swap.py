@@ -16,7 +16,7 @@ if __name__ == "__main__":
     # layer_sizes = {"rinp": 64, "rout":64, "r0": 64, "r1": 64}
     layer_sizes = {"rinp": 64, "rout":64, "r0": 64}
     hidden_size = 16
-    plastic = False
+    plastic = []
 
     symbols = [str(a) for a in range(num_symbols)]
     pathways, associations = default_initializer(
@@ -142,8 +142,12 @@ if __name__ == "__main__":
     
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)
+    pt.title("Learning curve")
+    pt.ylabel("Avg Reward")
     pt.subplot(2,1,2)
     pt.plot(grad_norms)
+    pt.xlabel("Epoch")
+    pt.ylabel("||Grad||")
     pt.show()
 
 
