@@ -24,9 +24,7 @@ if __name__ == "__main__":
         ["rinp","rout"], num_addresses)
 
     codec = Codec(layer_sizes, symbols, rho=.9)
-    # controller = Controller(layer_sizes, pathways, hidden_size)
-    # controller = Controller({"r0": layer_sizes["r0"]}, pathways, hidden_size) # ignore IO registers
-    controller = Controller({"rinp": layer_sizes["rinp"]}, pathways, hidden_size) # ignore IO registers
+    controller = Controller(layer_sizes, pathways, hidden_size)
 
     # Sanity check
     ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec)
@@ -84,7 +82,7 @@ if __name__ == "__main__":
             # Assess reward: negative LVD after separator filtering
             outputs_ = [out for out in outputs if out != separator]
             reward = -lvd(outputs_, targets)
-            reward -= sum([ghu.a[t].sum() for t in range(max_time)]) / (max_time*len(ghu.a[0])) # favor sparse gating
+            # reward -= sum([ghu.a[t].sum() for t in range(max_time)]) / (max_time*len(ghu.a[0])) # favor sparse gating
             rewards[episode] = reward
 
             if episode < 5:
@@ -110,20 +108,16 @@ if __name__ == "__main__":
         # Accumulate policy gradient
         J = 0.
         saturation = 0.
-        avg_a = {t:tr.zeros(len(ghus[0].a[0])) for t in range(max_time)}
         for e in range(num_episodes):
             r = returns[e]
             for t in range(max_time):
-                for i in range(len(ghu.g[t])):
-                    if ghus[e].a[t][i] > .5: p = ghus[e].g[t][i]
-                    if ghus[e].a[t][i] < .5: p = 1. - ghus[e].g[t][i]
-                    J += r * tr.log(p)
-                    saturation += min(p, 1-p)
-                avg_a[t] += ghus[e].a[t]
+                for g in [ghus[e].ag[t], ghus[e].pg[t]]:
+                    for _, (_, _, prob) in g.items():
+                        J += r * tr.log(prob)
+                        saturation += min(prob, 1. - prob)
+                # avg_a[t] += ghus[e].a[t]
         J.backward(retain_graph=True)
-        saturation /= num_episodes * max_time * len(ghus[0].g[0])
-        for t in range(max_time):
-            avg_a[t]  = (avg_a[t] / num_episodes) > .5
+        saturation /= num_episodes * max_time * (len(ghus[0].ag[0]) + len(ghus[0].pg[0]))
         
         # Policy update
         models = [controller]
@@ -135,21 +129,15 @@ if __name__ == "__main__":
 
         print("Avg reward = %f, |grad| = %f, saturation=%f" % 
             (avg_rewards[epoch], grad_norms[epoch], saturation))
-        # print("Actions:")
-        # for t in range(max_time):
-        #     # print(avg_a[t].numpy())
-        #     hrs, hrl = [], []
-        #     for i, p in enumerate(ghu.controller.pathway_keys):
-        #         j = i + len(ghu.controller.pathway_keys)
-        #         if avg_a[t][i] > .5: hrs.append("s[%s]" % p)
-        #         if avg_a[t][j] > .5: hrl.append("l[%s]" % p)
-        #     print(str(hrs))
-        #     print(str(hrl))
     
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)
+    pt.title("Learning curve")
+    pt.ylabel("Avg Reward")
     pt.subplot(2,1,2)
     pt.plot(grad_norms)
+    pt.xlabel("Epoch")
+    pt.ylabel("||Grad||")
     pt.show()
 
 

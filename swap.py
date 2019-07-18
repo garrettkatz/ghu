@@ -23,8 +23,8 @@ if __name__ == "__main__":
         layer_sizes.keys(), symbols)
 
     codec = Codec(layer_sizes, symbols, rho=.9)
-    # controller = Controller(layer_sizes, pathways, hidden_size)
-    controller = Controller(layer_sizes, pathways, hidden_size, input_keys=["r0"]) # ignore IO
+    controller = Controller(layer_sizes, pathways, hidden_size)
+    # controller = Controller(layer_sizes, pathways, hidden_size, input_keys=["r0"]) # ignore IO
 
     # Sanity check
     ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec)
