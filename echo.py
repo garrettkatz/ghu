@@ -19,7 +19,7 @@ if __name__ == "__main__":
     plastic = []
 
     symbols = [str(a) for a in range(num_symbols)]
-    pathways, associations = default_initializer(
+    pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
 
     codec = Codec(layer_sizes, symbols, rho=.9)
@@ -33,12 +33,12 @@ if __name__ == "__main__":
         assert(codec.decode(q, tr.mv( ghu.W[0][p], codec.encode(r, s))) == t)
     
     # Optimization settings
-    num_epochs = 100
-    num_episodes = 200
-    max_time = 3
+    num_epochs = 50
+    num_episodes = 100
+    max_time = 5
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
-    learning_rate = .005
+    learning_rate = .01
     
     # Train
     for epoch in range(num_epochs):
@@ -78,7 +78,18 @@ if __name__ == "__main__":
             if episode < 5:
                 print("Epoch %d, episode %d: echo %s -> %s, R=%f" % (
                     epoch, episode, echo_symbol, outputs, reward))
-
+            # if episode == 4:
+            #     for t in range(max_time):
+            #         print(t,{k: codec.decode(k,ghu.v[t][k]) for k in ghu.layer_sizes})
+            #         hrs, hrl = [], []
+            #         for q, (gate, action, prob) in ghu.ag[t].items():
+            #             hrs.append("%s(%.3f~%.3f)" % (action, gate.max(), prob))
+            #         for p, (gate, action, prob) in ghu.pg[t].items():
+            #             if action > .5: hrl.append("%s(%.3f~%.3f)" % (p, gate, prob))
+            #         print(t,"act",str(hrs))
+            #         print(t,"pla",str(hrl))
+            #     print(t,{k: codec.decode(k,ghu.v[max_time][k]) for k in ghu.layer_sizes})
+            
         # Compute baselined returns (reward - average)
         avg_rewards[epoch] = rewards.mean()
         returns = tr.tensor(rewards - avg_rewards[epoch]).float()
@@ -89,13 +100,12 @@ if __name__ == "__main__":
         for e in range(num_episodes):
             r = returns[e]
             for t in range(max_time):
-                for i in range(len(ghu.g[t])):
-                    if ghus[e].a[t][i] > .5: p = ghus[e].g[t][i]
-                    if ghus[e].a[t][i] < .5: p = 1. - ghus[e].g[t][i]
-                    J += r * tr.log(p)
-                    saturation += min(p, 1-p)
+                for g in [ghus[e].ag[t], ghus[e].pg[t]]:
+                    for _, (_, _, prob) in g.items():
+                        J += r * tr.log(prob)
+                        saturation += min(prob, 1 - prob)
         J.backward(retain_graph=True)
-        saturation /= num_episodes * max_time * len(ghus[0].g[0])
+        saturation /= num_episodes * max_time * (len(ghus[0].ag[0]) + len(ghus[0].pg[0]))
         
         # Policy update
         models = [controller]

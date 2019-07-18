@@ -31,8 +31,8 @@ if __name__ == "__main__":
     # Sanity check
     ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec)
     ghu.associate(associations)
-    for p,s,t in associations:
-        q,r = ghu.pathways[p]
+    for p, s, t in associations:
+        q, r = ghu.pathways[p]
         assert(codec.decode(q, tr.mv( ghu.W[0][p], codec.encode(r, s))) == t)
     
     # Optimization settings

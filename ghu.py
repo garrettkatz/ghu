@@ -30,48 +30,40 @@ class GatedHebbianUnit(object):
                 for q, size in layer_sizes.items()}
             for t in [-1, 0]}
         self.h = {-1: tr.zeros(1,1,controller.hidden_size)}
-        self.s = {}
-        self.l = {}
-        self.g = {}
-        self.a = {}
+        self.ag = {}
+        self.pg = {}
 
     def rehebbian(self, W, x, y):
         r = self.codec.rho
         n = x.nelement() * r**2
-        g = 0.5*(np.log(1. + r) - np.log(1. - r)) / r
-        dW = tr.ger(g*y - tr.mv(W, x), x) / n
+        g = 0.5*(np.log(1. + r) - np.log(1. - r)) / r # formula for arctanh(r)
+        dW = tr.ger(g*y - tr.mv(W, x), x) / n # ger is outer product
         return dW
 
-    def tick(self, num_steps=1, stochastic=True, detach=True, plastic=[]):
+    def tick(self, num_steps=1, detach=True, plastic=[]):
         # detach gates so that they are treated as actions on environment?
 
-        st = int(stochastic) # index into s, l
-        
-        T = len(self.g)
+        T = len(self.ag)
         for t in range(T, T+num_steps):
 
-            # Controller
-            ctrl = self.controller(self.v[t], self.h[t-1])
-            self.s[t], self.l[t], self.g[t], self.a[t], self.h[t] = ctrl
+            # Controller (activity gate, plasticity gate, hidden vector)
+            self.ag[t], self.pg[t], self.h[t] = self.controller(self.v[t], self.h[t-1])
     
             # Associative learning
             self.W[t+1] = dict(self.W[t])
             for p, (q,r) in self.pathways.items():
-                if p in plastic:
-                    dW = self.rehebbian(self.W[t][p], self.v[t-1][r], self.v[t][q])
-                    l = self.l[t][p][st]
-                    if detach: l = l.detach()
-                    self.W[t+1][p] = self.W[t][p] + l * dW
-            
+                if p not in plastic: continue
+                dW = self.rehebbian(self.W[t][p], self.v[t-1][r], self.v[t][q])
+                _, a, _ = self.pg[t][p]
+                if detach: a = a.detach()
+                self.W[t+1][p] = self.W[t][p] + a * dW
+
             # Associative recall
-            swv = { # net input
-                q: tr.zeros(size)
-                for q, size in self.layer_sizes.items()}
-            for p, (q, r) in self.pathways.items():
-                s = self.s[t][p][st]
-                if detach: s = s.detach()
-                swv[q] += s * tr.mv(self.W[t][p], self.v[t][r])
-            self.v[t+1] = {q: tr.tanh(swv[q]) for q in swv}
+            self.v[t+1] = {}
+            for q in self.layer_sizes.keys():
+                _, p, _ = self.ag[t][q]
+                _, r = self.pathways[p]
+                self.v[t+1][q] = tr.tanh(tr.mv(self.W[t][p], self.v[t][r]))
 
     def associate(self, associations):
         T = len(self.W)-1
