@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     codec = Codec(layer_sizes, symbols, rho=.9)
     # controller = Controller(layer_sizes, pathways, hidden_size)
-    controller = Controller({"r0": layer_sizes["r0"]}, pathways, hidden_size) # ignore IO registers
+    controller = Controller(layer_sizes, pathways, hidden_size, input_keys=["r0"]) # ignore IO
 
     # Sanity check
     ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec)
@@ -35,8 +35,8 @@ if __name__ == "__main__":
     
     # Optimization settings
     num_epochs = 100
-    num_episodes = 200
-    max_time = 3
+    num_episodes = 100
+    max_time = 4
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
     learning_rate = .005
@@ -78,24 +78,23 @@ if __name__ == "__main__":
             # Assess reward: negative LVD after separator filtering
             outputs_ = [out for out in outputs if out != separator]
             reward = -lvd(outputs_, targets)
-            reward -= sum([ghu.a[t].sum() for t in range(max_time)]) / (max_time*len(ghu.a[0])) # favor sparse gating
+            # reward -= sum([ghu.pg[t].sum() for t in range(max_time)]) / (max_time*len(ghu.a[0])) # favor sparse gating
             rewards[episode] = reward
 
             if episode < 5:
                 print("Epoch %d, episode %d: swap %s -> %s, R=%f" % (
                     epoch, episode, list(swap_symbols), list(outputs), reward))
-            if episode == 4:
-                for t in range(max_time):
-                    print({k: codec.decode(k,ghu.v[t][k]) for k in ghu.layer_sizes})
-                    # print(ghu.a[t].numpy())
-                    hrs, hrl = [], []
-                    for i, p in enumerate(ghu.controller.pathway_keys):
-                        j = i + len(ghu.controller.pathway_keys)
-                        if ghu.a[t][i] > .5: hrs.append("s[%s]" % p)
-                        if ghu.a[t][j] > .5: hrl.append("l[%s]" % p)
-                    print(t,str(hrs))
-                    print(t,str(hrl))
-                print({k: codec.decode(k,ghu.v[max_time][k]) for k in ghu.layer_sizes})
+            # if episode == 4:
+            #     for t in range(max_time):
+            #         print(t,{k: codec.decode(k,ghu.v[t][k]) for k in ghu.layer_sizes})
+            #         hrs, hrl = [], []
+            #         for q, (gate, action, prob) in ghu.ag[t].items():
+            #             hrs.append("%s(%.3f~%.3f)" % (action, gate.max(), prob))
+            #         for p, (gate, action, prob) in ghu.pg[t].items():
+            #             if action > .5: hrl.append("%s(%.3f~%.3f)" % (p, gate, prob))
+            #         print(t,"act",str(hrs))
+            #         print(t,"pla",str(hrl))
+            #     print(t,{k: codec.decode(k,ghu.v[max_time][k]) for k in ghu.layer_sizes})
 
         # Compute baselined returns (reward - average)
         avg_rewards[epoch] = rewards.mean()
@@ -104,20 +103,18 @@ if __name__ == "__main__":
         # Accumulate policy gradient
         J = 0.
         saturation = 0.
-        avg_a = {t:tr.zeros(len(ghus[0].a[0])) for t in range(max_time)}
         for e in range(num_episodes):
             r = returns[e]
             for t in range(max_time):
-                for i in range(len(ghu.g[t])):
-                    if ghus[e].a[t][i] > .5: p = ghus[e].g[t][i]
-                    if ghus[e].a[t][i] < .5: p = 1. - ghus[e].g[t][i]
-                    J += r * tr.log(p)
-                    saturation += min(p, 1-p)
-                avg_a[t] += ghus[e].a[t]
+                for g in [ghus[e].ag[t], ghus[e].pg[t]]:
+                    for _, (_, _, prob) in g.items():
+                        J += r * tr.log(prob)
+                        saturation += min(prob, 1. - prob)
+                # avg_a[t] += ghus[e].a[t]
         J.backward(retain_graph=True)
-        saturation /= num_episodes * max_time * len(ghus[0].g[0])
-        for t in range(max_time):
-            avg_a[t]  = (avg_a[t] / num_episodes) > .5
+        saturation /= num_episodes * max_time * (len(ghus[0].ag[0]) + len(ghus[0].pg[0]))
+        # for t in range(max_time):
+        #     avg_a[t]  = (avg_a[t] / num_episodes) > .5
         
         # Policy update
         models = [controller]
@@ -129,16 +126,16 @@ if __name__ == "__main__":
 
         print("Avg reward = %f, |grad| = %f, saturation=%f" % 
             (avg_rewards[epoch], grad_norms[epoch], saturation))
-        print("Actions:")
-        for t in range(max_time):
-            # print(avg_a[t].numpy())
-            hrs, hrl = [], []
-            for i, p in enumerate(ghu.controller.pathway_keys):
-                j = i + len(ghu.controller.pathway_keys)
-                if avg_a[t][i] > .5: hrs.append("s[%s]" % p)
-                if avg_a[t][j] > .5: hrl.append("l[%s]" % p)
-            print(str(hrs))
-            print(str(hrl))
+        # print("Actions:")
+        # for t in range(max_time):
+        #     # print(avg_a[t].numpy())
+        #     hrs, hrl = [], []
+        #     for i, p in enumerate(ghu.controller.pathway_keys):
+        #         j = i + len(ghu.controller.pathway_keys)
+        #         if avg_a[t][i] > .5: hrs.append("s[%s]" % p)
+        #         if avg_a[t][j] > .5: hrl.append("l[%s]" % p)
+        #     print(str(hrs))
+        #     print(str(hrl))
     
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)

@@ -103,7 +103,7 @@ if __name__ == "__main__":
                 for g in [ghus[e].ag[t], ghus[e].pg[t]]:
                     for _, (_, _, prob) in g.items():
                         J += r * tr.log(prob)
-                        saturation += min(prob, 1 - prob)
+                        saturation += min(prob, 1. - prob)
         J.backward(retain_graph=True)
         saturation /= num_episodes * max_time * (len(ghus[0].ag[0]) + len(ghus[0].pg[0]))
         
@@ -121,7 +121,10 @@ if __name__ == "__main__":
     
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)
+    pt.title("Learning curve")
+    pt.ylabel("Avg Reward")
     pt.subplot(2,1,2)
     pt.plot(grad_norms)
+    pt.xlabel("Epoch")
+    pt.ylabel("||Grad||")
     pt.show()
-

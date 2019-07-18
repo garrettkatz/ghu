@@ -6,21 +6,22 @@ class Controller(nn.Module):
     activity, plasticity: dicts = controller(v: dict)
     MLP with one recurrent hidden layer
     """
-    def __init__(self, layer_sizes, pathways, hidden_size):
+    def __init__(self, layer_sizes, pathways, hidden_size, input_keys=None):
+        if input_keys is None: input_keys = layer_sizes.keys()
         super(Controller, self).__init__()
-        self.input_keys = layer_sizes.keys()
+        self.layer_sizes = layer_sizes
+        self.input_keys = input_keys
         self.pathway_keys = pathways.keys()
         self.hidden_size = hidden_size
-        self.rnn = nn.RNN(sum(layer_sizes.values()), hidden_size)
-        # self.readout = nn.Linear(hidden_size, 2*len(pathways))
+        self.rnn = nn.RNN(sum([layer_sizes[q] for q in input_keys]), hidden_size)
         self.incoming = {
             q: [p for p, (q_,r) in pathways.items() if q_ == q]
-            for q in self.input_keys}
+            for q in self.layer_sizes}
         self.activity_readouts = nn.ModuleDict({
             q: nn.Sequential(
                 nn.Linear(hidden_size, len(self.incoming[q])),
                 nn.Softmax(dim=-1))
-            for q in self.input_keys})
+            for q in self.layer_sizes})
         self.plasticity_readout = nn.Sequential(
             nn.Linear(hidden_size, len(pathways)),
             nn.Sigmoid())
@@ -31,7 +32,7 @@ class Controller(nn.Module):
             h)
         activity, plasticity = {}, {}
         # activity
-        for q in self.input_keys:
+        for q in self.layer_sizes:
             gates = self.activity_readouts[q](h).squeeze()
             choice = tr.multinomial(gates, 1)
             action = self.incoming[q][choice]
