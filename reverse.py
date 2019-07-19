@@ -12,19 +12,22 @@ from lvd import lvd
 if __name__ == "__main__":
     print("*******************************************************")
     
-    num_addresses = 4
+    num_addresses = 5
+    # register_names = ["rinp","rout","r0"]
+    register_names = ["rinp","rout"]
     # layer_sizes = {"rinp": 64, "rout":64, "r0": 64, "r1": 64}
     # layer_sizes = {"rinp": 256, "rout": 256, "m": 256}
-    layer_sizes = {"rinp": 64, "rout": 64, "m": 64}
+    layer_sizes = {q: 128 for q in register_names+["m"]}
     hidden_size = 16
-    plastic = ["rinp<m", "rout<m"]
+    plastic = ["%s<m"%q for q in register_names]
 
     symbols = [str(a) for a in range(num_addresses)]
     pathways, associations = turing_initializer(
-        ["rinp","rout"], num_addresses)
+        register_names, num_addresses)
 
     codec = Codec(layer_sizes, symbols, rho=.9)
     controller = Controller(layer_sizes, pathways, hidden_size)
+    # controller = Controller(layer_sizes, pathways, hidden_size, input_keys=["m","rinp"])
 
     # Sanity check
     ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec)
@@ -34,15 +37,15 @@ if __name__ == "__main__":
         assert(codec.decode(q, tr.mv( ghu.W[0][p], codec.encode(r, s))) == t)
     
     # Optimization settings
-    num_epochs = 200
+    num_epochs = 600
     num_episodes = 250
-    list_symbols = 3
-    min_length = 2
-    max_length = 2
+    list_symbols = 4
+    min_length = 3
+    max_length = 3
     max_time = 2*max_length+1
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
-    learning_rate = .001
+    learning_rate = .00001
     
     # Train
     for epoch in range(num_epochs):
@@ -50,6 +53,7 @@ if __name__ == "__main__":
         # Record episodes and rewards
         ghus = []
         rewards = np.empty(num_episodes)
+        best_reward = -2.
 
         for episode in range(num_episodes):
 
@@ -88,18 +92,20 @@ if __name__ == "__main__":
             if episode < 5:
                 print("Epoch %d, episode %d: reverse %s -> %s vs %s, R=%f" % (
                     epoch, episode, list(inputs), list(outputs), list(targets), reward))
-            # if episode == 4:
-            #     for t in range(max_time):
-            #         print(t,{k: codec.decode(k,ghu.v[t][k]) for k in ghu.layer_sizes})
-            #         # print(ghu.a[t].numpy())
-            #         hrs, hrl = [], []
-            #         for i, p in enumerate(ghu.controller.pathway_keys):
-            #             j = i + len(ghu.controller.pathway_keys)
-            #             if ghu.a[t][i] > .5: hrs.append("s[%s]" % p)
-            #             if ghu.a[t][j] > .5: hrl.append("l[%s]" % p)
-            #         print(t,str(hrs))
-            #         print(t,str(hrl))
-            #     print(t,{k: codec.decode(k,ghu.v[max_time][k]) for k in ghu.layer_sizes})
+            if reward > best_reward:
+                print("Epoch %d, episode %d: reverse %s -> %s vs %s, R=%f" % (
+                    epoch, episode, list(inputs), list(outputs), list(targets), reward))
+                best_reward = reward
+                for t in range(max_time):
+                    print(t,{k: codec.decode(k,ghu.v[t][k]) for k in ghu.layer_sizes})
+                    hrs, hrl = [], []
+                    for q, (gate, action, prob) in ghu.ag[t].items():
+                        hrs.append("%s(%.1f~%.1f)" % (action, gate.max(), prob))
+                    for p, (gate, action, prob) in ghu.pg[t].items():
+                        if action > .5: hrl.append("%s(%.1f~%.1f)" % (p, gate, prob))
+                    print(t,"act",str(hrs))
+                    print(t,"pla",str(hrl))
+                print(t,{k: codec.decode(k,ghu.v[max_time][k]) for k in ghu.layer_sizes})
 
         # Compute baselined returns (reward - average)
         avg_rewards[epoch] = rewards.mean()
