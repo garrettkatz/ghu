@@ -38,7 +38,7 @@ if __name__ == "__main__":
     
     # Optimization settings
     num_epochs = 600
-    num_episodes = 250
+    num_episodes = 500
     list_symbols = 4
     min_length = 3
     max_length = 3
@@ -112,6 +112,7 @@ if __name__ == "__main__":
         returns = tr.tensor(rewards - avg_rewards[epoch]).float()
         
         # Accumulate policy gradient
+        print("Gradient calculation...")
         J = 0.
         saturation = 0.
         for e in range(num_episodes):
@@ -124,6 +125,7 @@ if __name__ == "__main__":
                 # avg_a[t] += ghus[e].a[t]
         J.backward(retain_graph=True)
         saturation /= num_episodes * max_time * (len(ghus[0].ag[0]) + len(ghus[0].pg[0]))
+        print("Done.")
         
         # Policy update
         models = [controller]
