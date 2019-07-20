@@ -11,7 +11,7 @@ from codec import Codec
 from controller import Controller
 
 class GatedHebbianUnit(object):
-    def __init__(self, layer_sizes, pathways, controller, codec):
+    def __init__(self, layer_sizes, pathways, controller, codec, batch_size=1):
         """
         layer_sizes[k] (dict): size of layer k
         pathways[p]: (destination, source) for pathway p
@@ -23,13 +23,13 @@ class GatedHebbianUnit(object):
         self.controller = controller
         self.codec = codec
         self.W = {0:
-            {p: tr.zeros(layer_sizes[q], layer_sizes[r])
+            {p: tr.zeros(batch_size, layer_sizes[q], layer_sizes[r])
                 for p, (q,r) in pathways.items()}}
         self.v = {t:
-            {q: tr.zeros(size)
-                for q, size in layer_sizes.items()}
+            {q: tr.zeros(batch_size, layer_size)
+                for q, layer_size in layer_sizes.items()}
             for t in [-1, 0]}
-        self.h = {-1: tr.zeros(1,1,controller.hidden_size)}
+        self.h = {-1: tr.zeros(1,batch_size,controller.hidden_size)}
         self.ag = {}
         self.pg = {}
 
