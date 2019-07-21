@@ -16,6 +16,8 @@ if __name__ == "__main__":
     num_symbols = 3
     layer_sizes = {"rinp": 64, "rout":64}
     hidden_size = 16
+    batch_size = 200
+    num_episodes = 1
     plastic = []
 
     symbols = [str(a) for a in range(num_symbols)]
@@ -26,69 +28,73 @@ if __name__ == "__main__":
     controller = Controller(layer_sizes, pathways, hidden_size)
 
     # Sanity check
-    ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec)
+    ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec, batch_size)
     ghu.associate(associations)
     for p,s,t in associations:
         q,r = ghu.pathways[p]
-        assert(codec.decode(q, tr.mv( ghu.W[0][p][0], codec.encode(r, s))) == t)
+        for b in range(batch_size):
+            assert(codec.decode(q, tr.mv( ghu.W[0][p][b], codec.encode(r, s))) == t)
     
     # Optimization settings
     num_epochs = 50
-    num_episodes = 100
     max_time = 5
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
-    learning_rate = .01
+    learning_rate = .005
     
     # Train
     for epoch in range(num_epochs):
 
         # Record episodes and rewards
         ghus = []
-        rewards = np.empty(num_episodes)
+        rewards = np.empty((num_episodes, batch_size))
 
         for episode in range(num_episodes):
 
-            # Randomly choose echo symbol (excluding 0 separator)
-            separator = symbols[0]
-            echo_symbol = np.random.choice(symbols[1:])
-            
             # Initialize a GHU with controller/codec and default associations
-            ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec)
+            ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec, batch_size)
             ghu.associate(associations)
             ghus.append(ghu)
 
+            # Randomly choose echo symbols (excluding 0 separator)
+            separator = symbols[0]
+            echo_symbols = np.random.choice(symbols[1:], size=(batch_size,))
+
             # Initialize layers
-            ghu.v[0]["rinp"] = codec.encode("rinp", echo_symbol).unsqueeze(0)
-            ghu.v[0]["rout"] = codec.encode("rout", separator).unsqueeze(0)
+            ghu.v[0]["rinp"] = tr.stack([
+                codec.encode("rinp", echo_symbols[b])
+                for b in range(batch_size)])
+            ghu.v[0]["rout"] = tr.stack([
+                codec.encode("rout", separator)
+                for b in range(batch_size)])
 
             # Run GHU
-            outputs = []
+            outputs = [[] for b in range(batch_size)]
             for t in range(max_time):
 
                 ghu.tick(plastic=plastic) # Take a step
-                out = codec.decode("rout", ghu.v[t+1]["rout"][0]) # Read output
-                outputs.append(out)
+                for b in range(batch_size):
+                    s = codec.decode("rout", ghu.v[t+1]["rout"][b]) # read output
+                    if s != separator: outputs[b].append(s) # filter out separator
 
             # Assess reward: negative LVD after separator filtering
-            outputs = [out for out in outputs if out != separator]
-            reward = -lvd(outputs, [echo_symbol])
-            rewards[episode] = reward
+            for b in range(batch_size):
+                rewards[episode, b] = -lvd(outputs[b], echo_symbols[[b]])
 
-            if episode < 5:
-                print("Epoch %d, episode %d: echo %s -> %s, R=%f" % (
-                    epoch, episode, echo_symbol, outputs, reward))
-            # if episode == 4:
+                if episode < 2 and b < 5:
+                    print("Epoch %d, episode %d, batch %d: echo %s -> %s, R=%f" % (
+                        epoch, episode, b, echo_symbols[b], outputs[b], rewards[episode, b]))
+            # if episode == 0:
             #     for t in range(max_time):
-            #         print(t,{k: codec.decode(k,ghu.v[t][k]) for k in ghu.layer_sizes})
+            #         print(t,{k: codec.decode(k,ghu.v[t][k][0]) for k in ghu.layer_sizes})
             #         hrs, hrl = [], []
             #         for q, (gate, action, prob) in ghu.ag[t].items():
-            #             hrs.append("%s(%.3f~%.3f)" % (action, gate.max(), prob))
+            #             hrs.append("%s(%.3f~%.3f)" % (action[0], gate[0].max(), prob[0]))
             #         for p, (gate, action, prob) in ghu.pg[t].items():
-            #             if action > .5: hrl.append("%s(%.3f~%.3f)" % (p, gate, prob))
+            #             if action[0] > .5: hrl.append("%s(%.3f~%.3f)" % (p, gate[0], prob[0]))
             #         print(t,"act",str(hrs))
             #         print(t,"pla",str(hrl))
-            #     print(t,{k: codec.decode(k,ghu.v[max_time][k]) for k in ghu.layer_sizes})
+            #     print(t,{k: codec.decode(k,ghu.v[max_time][k][0]) for k in ghu.layer_sizes})
             
         # Compute baselined returns (reward - average)
         avg_rewards[epoch] = rewards.mean()
@@ -98,15 +104,15 @@ if __name__ == "__main__":
         J = 0.
         saturation = 0.
         for e in range(num_episodes):
-            r = returns[e]
             for t in range(max_time):
                 for g in [ghus[e].ag[t], ghus[e].pg[t]]:
                     for _, (_, _, prob) in g.items():
-                        for p in prob: # over batch
-                            J += r * tr.log(p)
+                        for b,p in enumerate(prob): # over batch
+                            J += returns[e,b] * tr.log(p)
                             saturation += min(p, 1. - p)
-        J.backward(retain_graph=True)
-        saturation /= num_episodes * max_time * (len(ghus[0].ag[0]) + len(ghus[0].pg[0]))
+        # J.backward(retain_graph=True)
+        J.backward()
+        saturation /= num_episodes * batch_size * max_time * (len(ghus[0].ag[0]) + len(ghus[0].pg[0]))
         
         # Policy update
         models = [controller]

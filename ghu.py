@@ -64,12 +64,12 @@ class GatedHebbianUnit(object):
             self.v[t+1] = {}
             for q in self.layer_sizes.keys():
                 _, a, _ = self.ag[t][q]
-                tWv = []
+                Wv = []
                 for b,p in enumerate(a):
                     _, r = self.pathways[p]
-                    tWv.append(tr.tanh(
-                        tr.mv(self.W[t][p][b], self.v[t][r][b])))
-                self.v[t+1][q] = tr.stack(tWv)
+                    Wv.append(
+                        tr.mv(self.W[t][p][b], self.v[t][r][b]))
+                self.v[t+1][q] = tr.tanh(tr.stack(Wv))
 
     def associate(self, associations):
         T = len(self.W)-1
