@@ -96,16 +96,16 @@ if __name__ == "__main__":
         
         # Accumulate policy gradient
         J = 0.
-        saturation = 0.
+        saturation = []
         for e in range(num_episodes):
             r = returns[e]
             for t in range(max_time):
                 for g in [ghus[e].ag[t], ghus[e].pg[t]]:
                     for _, (_, _, prob) in g.items():
                         J += r * tr.log(prob)
-                        saturation += min(prob, 1. - prob)
+                        if g == ghus[e].ag[t]:
+                            saturation.append(min(float(prob), float(1. - prob)))
         J.backward(retain_graph=True)
-        saturation /= num_episodes * max_time * (len(ghus[0].ag[0]) + len(ghus[0].pg[0]))
         
         # Policy update
         models = [controller]
@@ -116,8 +116,9 @@ if __name__ == "__main__":
                 grad_norms[epoch] += (p.grad**2).sum() # Get gradient norm
                 p.data += p.grad * learning_rate / grad_max # Take ascent step
                 p.grad *= 0 # Clear gradients for next epoch
-        print("Avg reward = %f, |grad| = %f, saturation=%f" % 
-            (avg_rewards[epoch], grad_norms[epoch], saturation))
+        print("Avg reward = %f, |grad| = %f, saturation=%f (%f,%f)" %
+            (avg_rewards[epoch], grad_norms[epoch],
+            np.mean(saturation),np.min(saturation),np.max(saturation)))
     
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)
