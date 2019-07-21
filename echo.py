@@ -38,7 +38,7 @@ if __name__ == "__main__":
     max_time = 5
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
-    learning_rate = .0001
+    learning_rate = .01
     
     # Train
     for epoch in range(num_epochs):
