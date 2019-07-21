@@ -35,9 +35,11 @@ class GatedHebbianUnit(object):
 
     def rehebbian(self, W, x, y):
         r = self.codec.rho
-        n = x.nelement() * r**2
+        n = x.shape[1] * r**2
         g = 0.5*(np.log(1. + r) - np.log(1. - r)) / r # formula for arctanh(r)
-        dW = tr.ger(g*y - tr.mv(W, x), x) / n # ger is outer product
+        dW = tr.matmul(
+            g*y.unsqueeze(2) - tr.matmul(W, x.unsqueeze(2)),
+            x.unsqueeze(1)) / n
         return dW
 
     def tick(self, num_steps=1, detach=True, plastic=[]):
@@ -53,17 +55,21 @@ class GatedHebbianUnit(object):
             self.W[t+1] = dict(self.W[t])
             for p, (q,r) in self.pathways.items():
                 if p not in plastic: continue
-                dW = self.rehebbian(self.W[t][p], self.v[t-1][r], self.v[t][q])
-                _, a, _ = self.pg[t][p]
-                if detach: a = a.detach()
-                self.W[t+1][p] = self.W[t][p] + a * dW
+                _, l, _ = self.pg[t][p]
+                b = tr.nonzero(l)
+                dW = self.rehebbian(self.W[t][p][b], self.v[t-1][r][b], self.v[t][q][b])
+                self.W[t+1][p][b] = self.W[t][p][b] + dW
 
             # Associative recall
             self.v[t+1] = {}
             for q in self.layer_sizes.keys():
-                _, p, _ = self.ag[t][q]
-                _, r = self.pathways[p]
-                self.v[t+1][q] = tr.tanh(tr.mv(self.W[t][p], self.v[t][r]))
+                _, a, _ = self.ag[t][q]
+                tWv = []
+                for b,p in enumerate(a):
+                    _, r = self.pathways[p]
+                    tWv.append(tr.tanh(
+                        tr.mv(self.W[t][p][b], self.v[t][r][b])))
+                self.v[t+1][q] = tr.stack(tWv)
 
     def associate(self, associations):
         T = len(self.W)-1
@@ -71,7 +77,7 @@ class GatedHebbianUnit(object):
             q, r = self.pathways[p]
             x = self.codec.encode(r, s)
             y = self.codec.encode(q, t)
-            dW = self.rehebbian(self.W[T][p], x, y)
+            dW = self.rehebbian(self.W[T][p], x.unsqueeze(0), y.unsqueeze(0))
             self.W[T][p] = self.W[T][p] + dW
 
 def default_initializer(register_names, symbols):
@@ -103,7 +109,7 @@ if __name__ == "__main__":
     
     
     layer_sizes = {"r0": 3, "r1":3}
-    pathways = {0:("r0","r0"), 1:("r1","r0"), 2:("r1","r1")}
+    pathways = {0:("r0","r0"), 1:("r1","r0"), 2:("r1","r1"), 3:("r0","r1")}
     hidden_size = 5
 
     codec = Codec(layer_sizes, "01")
@@ -131,13 +137,13 @@ if __name__ == "__main__":
 
     print(codec.parameters())
     
-    ghu.v[-1]["r0"] = codec.encode("r0", str(1))
-    ghu.v[-1]["r1"] = codec.encode("r1", str(1))
-    ghu.v[0]["r0"] = codec.encode("r0", str(0))
-    ghu.v[0]["r1"] = codec.encode("r1", str(0))
+    ghu.v[-1]["r0"] = codec.encode("r0", str(1)).unsqueeze(0)
+    ghu.v[-1]["r1"] = codec.encode("r1", str(1)).unsqueeze(0)
+    ghu.v[0]["r0"] = codec.encode("r0", str(0)).unsqueeze(0)
+    ghu.v[0]["r1"] = codec.encode("r1", str(0)).unsqueeze(0)
     ghu.tick(num_steps=2)
 
-    e = ghu.g[len(ghu.g)-1].sum()
+    e = ghu.ag[len(ghu.ag)-1]["r1"][0].sum()
     e.backward()
     
     print("codec")
@@ -155,3 +161,4 @@ if __name__ == "__main__":
         for p1,a,b in associations:
             if p1 == p:
                 print(" %s -> %s"% (a,b))
+

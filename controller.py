@@ -1,5 +1,6 @@
 import torch as tr
 import torch.nn as nn
+import numpy as np
 
 class Controller(nn.Module):
     """
@@ -15,7 +16,7 @@ class Controller(nn.Module):
         self.hidden_size = hidden_size
         self.rnn = nn.RNN(sum([layer_sizes[q] for q in input_keys]), hidden_size)
         self.incoming = {
-            q: [p for p, (q_,r) in pathways.items() if q_ == q]
+            q: np.array([p for p, (q_,r) in pathways.items() if q_ == q])
             for q in self.layer_sizes}
         self.activity_readouts = nn.ModuleDict({
             q: nn.Sequential(
@@ -28,22 +29,22 @@ class Controller(nn.Module):
 
     def forward(self, v, h):
         _, h = self.rnn(
-            tr.cat([v[k] for k in self.input_keys]).view(1,1,-1),
+            tr.cat([v[k] for k in self.input_keys], dim=1).unsqueeze(0),
             h)
         activity, plasticity = {}, {}
         # activity
         for q in self.layer_sizes:
-            gates = self.activity_readouts[q](h).squeeze()
+            gates = self.activity_readouts[q](h).squeeze(0)
             choice = tr.multinomial(gates, 1)
-            action = self.incoming[q][choice]
-            prob = gates[choice]
+            action = self.incoming[q][choice].reshape(gates.shape[0]) # without reshape, action is scalar when batch_size=1
+            prob = [gates[b,c] for (b,c) in enumerate(choice)]
             activity[q] = (gates, action, prob)
         # plasticity
-        gates = self.plasticity_readout(h).squeeze()
+        gates = self.plasticity_readout(h).squeeze(0)
         action = tr.bernoulli(gates)
         probs = tr.where(action == 0, 1 - gates, gates)
         for i, p in enumerate(self.pathway_keys):
-            plasticity[p] = (gates[i], action[i], probs[i])
+            plasticity[p] = (gates[:,i], action[:,i], probs[:,i])
                 
         return activity, plasticity, h
 

@@ -30,7 +30,7 @@ if __name__ == "__main__":
     ghu.associate(associations)
     for p,s,t in associations:
         q,r = ghu.pathways[p]
-        assert(codec.decode(q, tr.mv( ghu.W[0][p], codec.encode(r, s))) == t)
+        assert(codec.decode(q, tr.mv( ghu.W[0][p][0], codec.encode(r, s))) == t)
     
     # Optimization settings
     num_epochs = 50
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     max_time = 5
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
-    learning_rate = .01
+    learning_rate = .0001
     
     # Train
     for epoch in range(num_epochs):
@@ -59,15 +59,15 @@ if __name__ == "__main__":
             ghus.append(ghu)
 
             # Initialize layers
-            ghu.v[0]["rinp"] = codec.encode("rinp", echo_symbol)
-            ghu.v[0]["rout"] = codec.encode("rout", separator)
+            ghu.v[0]["rinp"] = codec.encode("rinp", echo_symbol).unsqueeze(0)
+            ghu.v[0]["rout"] = codec.encode("rout", separator).unsqueeze(0)
 
             # Run GHU
             outputs = []
             for t in range(max_time):
 
                 ghu.tick(plastic=plastic) # Take a step
-                out = codec.decode("rout", ghu.v[t+1]["rout"]) # Read output
+                out = codec.decode("rout", ghu.v[t+1]["rout"][0]) # Read output
                 outputs.append(out)
 
             # Assess reward: negative LVD after separator filtering
@@ -102,8 +102,9 @@ if __name__ == "__main__":
             for t in range(max_time):
                 for g in [ghus[e].ag[t], ghus[e].pg[t]]:
                     for _, (_, _, prob) in g.items():
-                        J += r * tr.log(prob)
-                        saturation += min(prob, 1. - prob)
+                        for p in prob: # over batch
+                            J += r * tr.log(p)
+                            saturation += min(p, 1. - p)
         J.backward(retain_graph=True)
         saturation /= num_episodes * max_time * (len(ghus[0].ag[0]) + len(ghus[0].pg[0]))
         
