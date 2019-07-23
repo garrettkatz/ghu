@@ -38,7 +38,7 @@ if __name__ == "__main__":
     
     # Optimization settings
     num_epochs = 600
-    num_episodes = 500
+    num_episodes = 100
     list_symbols = 4
     min_length = 3
     max_length = 3
@@ -58,6 +58,7 @@ if __name__ == "__main__":
         for episode in range(num_episodes):
 
             # Get random example
+            if episode < 5: print("Sampling problem instance...")
             separator = symbols[0]
             list_length = np.random.randint(min_length, max_length+1)
             inputs = np.array([separator]*(list_length+1))
@@ -65,6 +66,7 @@ if __name__ == "__main__":
             targets = inputs[:-1][::-1]
             
             # Initialize a GHU with controller/codec and default associations
+            if episode < 5: print("Initializing GHU with associations...")
             ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec, plastic=plastic)
             ghu.associate(associations)
             ghus.append(ghu)
@@ -74,6 +76,7 @@ if __name__ == "__main__":
                 ghu.v[0][k] = codec.encode(k, separator)
 
             # Run GHU
+            if episode < 5: print("Running GHU...")
             outputs = []
             for t in range(max_time):
 
@@ -84,9 +87,9 @@ if __name__ == "__main__":
                 outputs.append(out)
 
             # Assess reward: negative LVD after separator filtering
+            if episode < 5: print("Assessing reward...")
             outputs_ = [out for out in outputs if out != separator]
             reward = -lvd(outputs_, targets)
-            # reward -= sum([ghu.a[t].sum() for t in range(max_time)]) / (max_time*len(ghu.a[0])) # favor sparse gating
             rewards[episode] = reward
 
             if episode < 5:
@@ -112,7 +115,7 @@ if __name__ == "__main__":
         returns = tr.tensor(rewards - avg_rewards[epoch]).float()
         
         # Accumulate policy gradient
-        print("Gradient calculation...")
+        print("Calculating pre-gradient...")
         J = 0.
         saturation = []
         for e in range(num_episodes):
@@ -123,10 +126,11 @@ if __name__ == "__main__":
                         J += r * tr.log(prob)
                 # avg_a[t] += ghus[e].a[t]
             saturation.extend(ghus[e].saturation())
+        print("Autodiff...")
         J.backward()
-        print("Done.")
         
         # Policy update
+        print("Updating model...")
         models = [controller]
         for model in models:
             for p in model.parameters():
@@ -135,8 +139,8 @@ if __name__ == "__main__":
                 p.data += p.grad * learning_rate # Take ascent step
                 p.grad *= 0 # Clear gradients for next epoch
 
-        print("Avg reward = %f, |grad| = %f, saturation=%f (%f,%f)" %
-            (avg_rewards[epoch], grad_norms[epoch],
+        print("Avg reward = %.2f (%.2f, %.2f), |grad| = %f, saturation=%f (%f,%f)" %
+            (avg_rewards[epoch], rewards.min(), rewards.max(), grad_norms[epoch],
             np.mean(saturation),np.min(saturation),np.max(saturation)))
     
     pt.subplot(2,1,1)
