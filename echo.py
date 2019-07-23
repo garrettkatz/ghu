@@ -26,7 +26,8 @@ if __name__ == "__main__":
     controller = Controller(layer_sizes, pathways, hidden_size)
 
     # Sanity check
-    ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec)
+    ghu = GatedHebbianUnit(
+        layer_sizes, pathways, controller, codec, plastic=plastic)
     ghu.associate(associations)
     for p,s,t in associations:
         q,r = ghu.pathways[p]
@@ -38,7 +39,7 @@ if __name__ == "__main__":
     max_time = 5
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
-    learning_rate = .01
+    learning_rate = .001
     
     # Train
     for epoch in range(num_epochs):
@@ -54,7 +55,8 @@ if __name__ == "__main__":
             echo_symbol = np.random.choice(symbols[1:])
             
             # Initialize a GHU with controller/codec and default associations
-            ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec)
+            ghu = GatedHebbianUnit(
+                layer_sizes, pathways, controller, codec, plastic=plastic)
             ghu.associate(associations)
             ghus.append(ghu)
 
@@ -66,7 +68,7 @@ if __name__ == "__main__":
             outputs = []
             for t in range(max_time):
 
-                ghu.tick(plastic=plastic) # Take a step
+                ghu.tick() # Take a step
                 out = codec.decode("rout", ghu.v[t+1]["rout"]) # Read output
                 outputs.append(out)
 
@@ -103,8 +105,7 @@ if __name__ == "__main__":
                 for g in [ghus[e].ag[t], ghus[e].pg[t]]:
                     for _, (_, _, prob) in g.items():
                         J += r * tr.log(prob)
-                        if g == ghus[e].ag[t]:
-                            saturation.append(min(float(prob), float(1. - prob)))
+            saturation.extend(ghus[e].saturation())
         J.backward(retain_graph=True)
         
         # Policy update

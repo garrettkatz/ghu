@@ -11,7 +11,7 @@ from codec import Codec
 from controller import Controller
 
 class GatedHebbianUnit(object):
-    def __init__(self, layer_sizes, pathways, controller, codec):
+    def __init__(self, layer_sizes, pathways, controller, codec, plastic=[]):
         """
         layer_sizes[k] (dict): size of layer k
         pathways[p]: (destination, source) for pathway p
@@ -22,6 +22,7 @@ class GatedHebbianUnit(object):
         self.pathways = pathways
         self.controller = controller
         self.codec = codec
+        self.plastic = plastic
         self.W = {0:
             {p: tr.zeros(layer_sizes[q], layer_sizes[r])
                 for p, (q,r) in pathways.items()}}
@@ -40,7 +41,7 @@ class GatedHebbianUnit(object):
         dW = tr.ger(g*y - tr.mv(W, x), x) / n # ger is outer product
         return dW
 
-    def tick(self, num_steps=1, detach=True, plastic=[]):
+    def tick(self, num_steps=1, detach=True):
         # detach gates so that they are treated as actions on environment?
 
         T = len(self.ag)
@@ -52,7 +53,7 @@ class GatedHebbianUnit(object):
             # Associative learning
             self.W[t+1] = dict(self.W[t])
             for p, (q,r) in self.pathways.items():
-                if p not in plastic: continue
+                if p not in self.plastic: continue
                 dW = self.rehebbian(self.W[t][p], self.v[t-1][r], self.v[t][q])
                 _, a, _ = self.pg[t][p]
                 if detach: a = a.detach()
@@ -73,6 +74,17 @@ class GatedHebbianUnit(object):
             y = self.codec.encode(q, t)
             dW = self.rehebbian(self.W[T][p], x, y)
             self.W[T][p] = self.W[T][p] + dW
+    
+    def saturation(self):
+        s = []
+        for t, g in self.ag.items():
+            for _, (_, _, prob) in g.items():
+                s.append(min(float(prob), float(1. - prob)))
+        for t, g in self.pg.items():
+            for p,(_, _, prob) in g.items():
+                if p not in self.plastic: continue
+                s.append(min(float(prob), float(1. - prob)))
+        return s
 
 def default_initializer(register_names, symbols):
     pathways = {
