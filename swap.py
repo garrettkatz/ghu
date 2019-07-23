@@ -23,7 +23,7 @@ if __name__ == "__main__":
         layer_sizes.keys(), symbols)
 
     codec = Codec(layer_sizes, symbols, rho=.9)
-    controller = Controller(layer_sizes, pathways, hidden_size)
+    controller = Controller(layer_sizes, pathways, hidden_size, plastic)
     # controller = Controller(layer_sizes, pathways, hidden_size, input_keys=["r0"]) # ignore IO
 
     # Sanity check
@@ -111,7 +111,7 @@ if __name__ == "__main__":
                         J += r * tr.log(prob)
                 # avg_a[t] += ghus[e].a[t]
             saturation.extend(ghus[e].saturation())
-        J.backward(retain_graph=True)
+        J.backward()
         # for t in range(max_time):
         #     avg_a[t]  = (avg_a[t] / num_episodes) > .5
         
@@ -119,6 +119,7 @@ if __name__ == "__main__":
         models = [controller]
         for model in models:
             for p in model.parameters():
+                if p.data.numel() == 0: continue # happens for plastic = []
                 grad_norms[epoch] += (p.grad**2).sum() # Get gradient norm
                 p.data += p.grad * learning_rate # Take ascent step
                 p.grad *= 0 # Clear gradients for next epoch

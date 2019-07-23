@@ -6,15 +6,15 @@ class Controller(nn.Module):
     activity, plasticity: dicts = controller(v: dict)
     MLP with one recurrent hidden layer
     """
-    def __init__(self, layer_sizes, pathways, hidden_size, input_keys=None):
+    def __init__(self, layer_sizes, pathways, hidden_size, plastic, input_keys=None):
         if input_keys is None: input_keys = layer_sizes.keys()
         super(Controller, self).__init__()
         self.layer_sizes = layer_sizes
         self.input_keys = input_keys
-        self.pathway_keys = pathways.keys()
+        self.plastic = plastic
         self.hidden_size = hidden_size
         self.rnn = nn.RNN(sum([layer_sizes[q] for q in input_keys]), hidden_size)
-        self.incoming = {
+        self.incoming = { # pathways organized by destination layer
             q: [p for p, (q_,r) in pathways.items() if q_ == q]
             for q in self.layer_sizes}
         self.activity_readouts = nn.ModuleDict({
@@ -23,7 +23,7 @@ class Controller(nn.Module):
                 nn.Softmax(dim=-1))
             for q in self.layer_sizes})
         self.plasticity_readout = nn.Sequential(
-            nn.Linear(hidden_size, len(pathways)),
+            nn.Linear(hidden_size, len(plastic)),
             nn.Sigmoid())
 
     def forward(self, v, h):
@@ -42,7 +42,7 @@ class Controller(nn.Module):
         gates = self.plasticity_readout(h).squeeze()
         action = tr.bernoulli(gates)
         probs = tr.where(action == 0, 1 - gates, gates)
-        for i, p in enumerate(self.pathway_keys):
+        for i, p in enumerate(self.plastic):
             plasticity[p] = (gates[i], action[i], probs[i])
                 
         return activity, plasticity, h

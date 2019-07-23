@@ -23,7 +23,7 @@ if __name__ == "__main__":
         layer_sizes.keys(), symbols)
 
     codec = Codec(layer_sizes, symbols, rho=.9)
-    controller = Controller(layer_sizes, pathways, hidden_size)
+    controller = Controller(layer_sizes, pathways, hidden_size, plastic)
 
     # Sanity check
     ghu = GatedHebbianUnit(
@@ -106,7 +106,7 @@ if __name__ == "__main__":
                     for _, (_, _, prob) in g.items():
                         J += r * tr.log(prob)
             saturation.extend(ghus[e].saturation())
-        J.backward(retain_graph=True)
+        J.backward()
         
         # Policy update
         models = [controller]
@@ -114,6 +114,7 @@ if __name__ == "__main__":
         grad_max = 1.
         for model in models:
             for p in model.parameters():
+                if p.data.numel() == 0: continue # happens for plastic = []
                 grad_norms[epoch] += (p.grad**2).sum() # Get gradient norm
                 p.data += p.grad * learning_rate / grad_max # Take ascent step
                 p.grad *= 0 # Clear gradients for next epoch

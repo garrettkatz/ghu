@@ -52,8 +52,10 @@ class GatedHebbianUnit(object):
     
             # Associative learning
             self.W[t+1] = dict(self.W[t])
-            for p, (q,r) in self.pathways.items():
-                if p not in self.plastic: continue
+            # for p, (q,r) in self.pathways.items():
+            #     if p not in self.plastic: continue
+            for p in self.plastic:
+                q, r = self.pathways[p]
                 dW = self.rehebbian(self.W[t][p], self.v[t-1][r], self.v[t][q])
                 _, a, _ = self.pg[t][p]
                 if detach: a = a.detach()
@@ -76,15 +78,18 @@ class GatedHebbianUnit(object):
             self.W[T][p] = self.W[T][p] + dW
     
     def saturation(self):
-        s = []
-        for t, g in self.ag.items():
-            for _, (_, _, prob) in g.items():
-                s.append(min(float(prob), float(1. - prob)))
-        for t, g in self.pg.items():
-            for p,(_, _, prob) in g.items():
-                if p not in self.plastic: continue
-                s.append(min(float(prob), float(1. - prob)))
-        return s
+        return [min(float(prob), float(1. - prob))
+            for g in [self.ag, self.pg]
+                for gates in g.values()
+                    for (_, _, prob) in gates.values()]
+        # s = []
+        # for t, g in self.ag.items():
+        #     for _, (_, _, prob) in g.items():
+        #         s.append(min(float(prob), float(1. - prob)))
+        # for t, g in self.pg.items():
+        #     for p,(_, _, prob) in g.items():
+        #         s.append(min(float(prob), float(1. - prob)))
+        # return s
 
 def default_initializer(register_names, symbols):
     pathways = {
