@@ -12,20 +12,21 @@ from lvd import lvd
 if __name__ == "__main__":
     print("*******************************************************")
     
-    num_addresses = 5
+    num_addresses = 4
     # register_names = ["rinp","rout","r0"]
     register_names = ["rinp","rout"]
     # layer_sizes = {"rinp": 64, "rout":64, "r0": 64, "r1": 64}
     # layer_sizes = {"rinp": 256, "rout": 256, "m": 256}
-    layer_sizes = {q: 128 for q in register_names+["m"]}
-    hidden_size = 16
-    plastic = ["%s<m"%q for q in register_names]
+    layer_sizes = {q: 64 for q in register_names+["m"]}
+    hidden_size = 8
+    # plastic = ["%s<m"%q for q in register_names]
+    plastic = ["rinp<m"]
 
     symbols = [str(a) for a in range(num_addresses)]
     pathways, associations = turing_initializer(
         register_names, num_addresses)
 
-    codec = Codec(layer_sizes, symbols, rho=.9)
+    codec = Codec(layer_sizes, symbols, rho=.999)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
     # controller = Controller(layer_sizes, pathways, hidden_size, input_keys=["m","rinp"])
 
@@ -37,15 +38,15 @@ if __name__ == "__main__":
         assert(codec.decode(q, tr.mv( ghu.W[0][p], codec.encode(r, s))) == t)
     
     # Optimization settings
-    num_epochs = 600
-    num_episodes = 100
+    num_epochs = 500
+    num_episodes = 500
     list_symbols = 4
     min_length = 3
     max_length = 3
     max_time = 2*max_length+1
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
-    learning_rate = .00001
+    learning_rate = .001
     
     # Train
     for epoch in range(num_epochs):
@@ -95,20 +96,20 @@ if __name__ == "__main__":
             if episode < 5:
                 print("Epoch %d, episode %d: reverse %s -> %s vs %s, R=%f" % (
                     epoch, episode, list(inputs), list(outputs), list(targets), reward))
-            if reward > best_reward:
-                print("Epoch %d, episode %d: reverse %s -> %s vs %s, R=%f" % (
-                    epoch, episode, list(inputs), list(outputs), list(targets), reward))
-                best_reward = reward
-                for t in range(max_time):
-                    print(t,{k: codec.decode(k,ghu.v[t][k]) for k in ghu.layer_sizes})
-                    hrs, hrl = [], []
-                    for q, (gate, action, prob) in ghu.ag[t].items():
-                        hrs.append("%s(%.1f~%.1f)" % (action, gate.max(), prob))
-                    for p, (gate, action, prob) in ghu.pg[t].items():
-                        if action > .5: hrl.append("%s(%.1f~%.1f)" % (p, gate, prob))
-                    print(t,"act",str(hrs))
-                    print(t,"pla",str(hrl))
-                print(t,{k: codec.decode(k,ghu.v[max_time][k]) for k in ghu.layer_sizes})
+            # if reward > best_reward:
+            #     print("Epoch %d, episode %d: reverse %s -> %s vs %s, R=%f" % (
+            #         epoch, episode, list(inputs), list(outputs), list(targets), reward))
+            #     best_reward = reward
+            #     for t in range(max_time):
+            #         print(t,{k: codec.decode(k,ghu.v[t][k]) for k in ghu.layer_sizes})
+            #         hrs, hrl = [], []
+            #         for q, (gate, action, prob) in ghu.ag[t].items():
+            #             hrs.append("%s(%.1f~%.1f)" % (action, gate.max(), prob))
+            #         for p, (gate, action, prob) in ghu.pg[t].items():
+            #             if action > .5: hrl.append("%s(%.1f~%.1f)" % (p, gate, prob))
+            #         print(t,"act",str(hrs))
+            #         print(t,"pla",str(hrl))
+            #     print(t,{k: codec.decode(k,ghu.v[max_time][k]) for k in ghu.layer_sizes})
 
         # Compute baselined returns (reward - average)
         avg_rewards[epoch] = rewards.mean()
@@ -142,13 +143,17 @@ if __name__ == "__main__":
         print("Avg reward = %.2f (%.2f, %.2f), |grad| = %f, saturation=%f (%f,%f)" %
             (avg_rewards[epoch], rewards.min(), rewards.max(), grad_norms[epoch],
             np.mean(saturation),np.min(saturation),np.max(saturation)))
+        
+        if epoch > 0 and epoch % 100 == 0:
+            yn = input("Continue? [y/n]")
+            if yn == "n": break
     
     pt.subplot(2,1,1)
-    pt.plot(avg_rewards)
+    pt.plot(avg_rewards[:epoch+1])
     pt.title("Learning curve")
     pt.ylabel("Avg Reward")
     pt.subplot(2,1,2)
-    pt.plot(grad_norms)
+    pt.plot(grad_norms[:epoch+1])
     pt.xlabel("Epoch")
     pt.ylabel("||Grad||")
     pt.show()

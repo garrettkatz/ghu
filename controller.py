@@ -33,13 +33,13 @@ class Controller(nn.Module):
         activity, plasticity = {}, {}
         # activity
         for q in self.layer_sizes:
-            gates = self.activity_readouts[q](h).squeeze()
+            gates = self.activity_readouts[q](h).flatten()
             choice = tr.multinomial(gates, 1)
             action = self.incoming[q][choice]
             prob = gates[choice]
             activity[q] = (gates, action, prob)
         # plasticity
-        gates = self.plasticity_readout(h).squeeze()
+        gates = self.plasticity_readout(h).flatten()
         action = tr.bernoulli(gates)
         probs = tr.where(action == 0, 1 - gates, gates)
         for i, p in enumerate(self.plastic):
