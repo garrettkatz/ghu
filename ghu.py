@@ -92,26 +92,6 @@ class GatedHebbianUnit(object):
         #         s.append(min(float(prob), float(1. - prob)))
         # return s
 
-    def pretrain(self, tol=.25, max_time=4, max_iters=100, learning_rate=0.01):
-        for itr in range(max_iters):
-            loss = 0.
-            for t in range(max_time):
-                for k in layer_sizes.keys():
-                    self.v[t][k] = np.random.choice(self.codec.lookup.values())
-                self.tick()
-                for (gates,_,_) in self.pg[t].values()
-                    loss += tr.sum((gates-.5)**2)
-                for (gates,_,_) in self.ag[t].values()
-                    loss += tr.sum((gates - 1./gates.numel())**2)
-            loss.backward()
-            for p in self.controller.parameters():
-                if p.data.numel() == 0: continue # happens for plastic = []
-                p.data += p.grad * learning_rate # Take ascent step
-                p.grad *= 0 # Clear gradients for next epoch
-            
-
-
-
 def default_initializer(register_names, symbols):
     pathways = {
         q+"<"+r: (q,r)

@@ -46,6 +46,31 @@ if __name__ == "__main__":
         q, r = ghu.pathways[p]
         assert(codec.decode(q, tr.mv( ghu.W[0][p], codec.encode(r, s))) == t)
     
+    # Pre-train for uniform action distribution
+    tol=.25
+    max_time=4
+    max_iters=500
+    learning_rate=0.01
+    for itr in range(max_iters):
+        ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec, plastic=plastic)
+        ghu.associate(associations)
+        loss = 0.
+        for t in range(max_time):
+            for k in layer_sizes.keys():
+                ghu.v[t][k] = codec.encode(k, np.random.choice(symbols))
+            ghu.tick()
+            for (gates,_,_) in ghu.pg[t].values():
+                loss += tr.sum((gates-.5)**2)
+            for (gates,_,_) in ghu.ag[t].values():
+                loss += tr.sum((gates - 1./gates.numel())**2)
+        if itr % 100 == 0: print("pretrain %d: %f" % (itr, loss.item()))
+        loss.backward()
+        for p in ghu.controller.parameters():
+            if p.data.numel() == 0: continue # happens for plastic = []
+            p.data -= p.grad * learning_rate # Take ascent step
+            p.grad *= 0 # Clear gradients for next epoch
+    
+    
     # Optimization settings
     num_epochs = 500
     num_episodes = 500
@@ -55,7 +80,7 @@ if __name__ == "__main__":
     max_time = 2*max_length+1
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
-    learning_rate = .001
+    learning_rate = .0001
     
     # Train
     for epoch in range(num_epochs):
