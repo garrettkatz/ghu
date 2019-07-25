@@ -12,19 +12,28 @@ from lvd import lvd
 if __name__ == "__main__":
     print("*******************************************************")
     
+    verbose = 1
+    
     num_addresses = 4
     # register_names = ["rinp","rout","r0"]
     register_names = ["rinp","rout"]
     # layer_sizes = {"rinp": 64, "rout":64, "r0": 64, "r1": 64}
     # layer_sizes = {"rinp": 256, "rout": 256, "m": 256}
     layer_sizes = {q: 64 for q in register_names+["m"]}
-    hidden_size = 8
+    hidden_size = 16
     # plastic = ["%s<m"%q for q in register_names]
     plastic = ["rinp<m"]
 
     symbols = [str(a) for a in range(num_addresses)]
     pathways, associations = turing_initializer(
         register_names, num_addresses)
+
+    # constrain pathways inductive bias
+    remove_pathways = ["rout<m", "m<rout"]
+    for p in remove_pathways: pathways.pop(p)
+    associations = list(filter(lambda x: x[0] not in remove_pathways, associations))
+    # print(pathways)
+    # print(associations)
 
     codec = Codec(layer_sizes, symbols, rho=.999)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
@@ -59,7 +68,7 @@ if __name__ == "__main__":
         for episode in range(num_episodes):
 
             # Get random example
-            if episode < 5: print("Sampling problem instance...")
+            if verbose > 1 and episode < 5: print("Sampling problem instance...")
             separator = symbols[0]
             list_length = np.random.randint(min_length, max_length+1)
             inputs = np.array([separator]*(list_length+1))
@@ -67,7 +76,7 @@ if __name__ == "__main__":
             targets = inputs[:-1][::-1]
             
             # Initialize a GHU with controller/codec and default associations
-            if episode < 5: print("Initializing GHU with associations...")
+            if verbose > 1 and episode < 5: print("Initializing GHU with associations...")
             ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec, plastic=plastic)
             ghu.associate(associations)
             ghus.append(ghu)
@@ -77,7 +86,7 @@ if __name__ == "__main__":
                 ghu.v[0][k] = codec.encode(k, separator)
 
             # Run GHU
-            if episode < 5: print("Running GHU...")
+            if verbose > 1 and episode < 5: print("Running GHU...")
             outputs = []
             for t in range(max_time):
 
@@ -88,7 +97,7 @@ if __name__ == "__main__":
                 outputs.append(out)
 
             # Assess reward: negative LVD after separator filtering
-            if episode < 5: print("Assessing reward...")
+            if verbose > 1 and episode < 5: print("Assessing reward...")
             outputs_ = [out for out in outputs if out != separator]
             reward = -lvd(outputs_, targets)
             rewards[episode] = reward
