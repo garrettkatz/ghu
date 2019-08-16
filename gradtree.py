@@ -10,6 +10,7 @@ def gradtree(x, prefix=''):
             s += gradtree(f[0], prefix + ' ')
     else:
         s = prefix + str(x) + "\n"
+
     return s
 
 if __name__ == "__main__":
