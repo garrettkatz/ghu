@@ -26,7 +26,9 @@ class Controller(nn.Module):
             nn.Linear(hidden_size, len(plastic)),
             nn.Sigmoid())
 
-    def forward(self, v, h):
+    def forward(self, v, h, override=None):
+        # override[q] = choice for q's activity gate
+        # override["plasticity"] = plasticity gates
         _, h = self.rnn(
             tr.cat([v[k] for k in self.input_keys]).view(1,1,-1),
             h)
@@ -34,13 +36,13 @@ class Controller(nn.Module):
         # activity
         for q in self.layer_sizes:
             gates = self.activity_readouts[q](h).flatten()
-            choice = tr.multinomial(gates, 1)
+            choice = tr.multinomial(gates, 1) if override is None else override[q]
             action = self.incoming[q][choice]
             prob = gates[choice]
             activity[q] = (gates, action, prob)
         # plasticity
         gates = self.plasticity_readout(h).flatten()
-        action = tr.bernoulli(gates)
+        action = tr.bernoulli(gates) if override is None else override["plasticity"]
         probs = tr.where(action == 0, 1 - gates, gates)
         for i, p in enumerate(self.plastic):
             plasticity[p] = (gates[i], action[i], probs[i])

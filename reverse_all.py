@@ -93,6 +93,15 @@ if __name__ == "__main__":
         episode = -1
         for list_length in range(min_length, max_length+1):
             for list_perm in it.permutations(symbols[1:list_symbols], list_length):
+
+                # Number of possible action sequences:
+                # ( 2**len(plastic) * product([len(incoming[q]) for q in layer_sizes] )**list_length
+                # incoming:
+                    # rinp: <m, <rout, <rinp (3)
+                    # rout: <rinp, <rout (2)
+                    # m: <rinp, <m, inc, dec (4)
+                # (2**1 * product([3,2,4])) ** 3 = 110592
+
                 episode += 1
 
                 # Get current example

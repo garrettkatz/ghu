@@ -41,14 +41,16 @@ class GatedHebbianUnit(object):
         dW = tr.ger(g*y - tr.mv(W, x), x) / n # ger is outer product
         return dW
 
-    def tick(self, num_steps=1, detach=True):
+    def tick(self, num_steps=1, detach=True, overrides=[None]):
+        # overrides passed to controller
         # detach gates so that they are treated as actions on environment?
 
         T = len(self.ag)
         for t in range(T, T+num_steps):
 
             # Controller (activity gate, plasticity gate, hidden vector)
-            self.ag[t], self.pg[t], self.h[t] = self.controller(self.v[t], self.h[t-1])
+            self.ag[t], self.pg[t], self.h[t] = self.controller(
+                self.v[t], self.h[t-1], override=overrides[t-T])
     
             # Associative learning
             self.W[t+1] = dict(self.W[t])
