@@ -20,7 +20,7 @@ if __name__ == "__main__":
     # layer_sizes = {"rinp": 64, "rout":64, "r0": 64, "r1": 64}
     # layer_sizes = {"rinp": 256, "rout": 256, "m": 256}
     layer_sizes = {q: 64 for q in register_names+["m"]}
-    hidden_size = 16
+    hidden_size = 3
     # plastic = ["%s<m"%q for q in register_names]
     plastic = ["rinp<m"]
 
@@ -38,6 +38,7 @@ if __name__ == "__main__":
     codec = Codec(layer_sizes, symbols, rho=.999)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
     # controller = Controller(layer_sizes, pathways, hidden_size, input_keys=["m","rinp"])
+    controller.rnn.weight_hh_l0.data = 1*tr.eye(hidden_size) # favor repeated actions
 
     # Sanity check
     ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec, plastic=plastic)
@@ -73,8 +74,8 @@ if __name__ == "__main__":
     
     
     # Optimization settings
-    num_epochs = 500
-    num_episodes = 500
+    num_epochs = 100
+    num_episodes = 20000
     list_symbols = 4
     min_length = 3
     max_length = 3
@@ -90,6 +91,8 @@ if __name__ == "__main__":
         ghus = []
         rewards = np.empty(num_episodes)
         best_reward = -2.
+
+        print(controller.rnn.weight_hh_l0.detach().numpy())
 
         for episode in range(num_episodes):
 
@@ -159,8 +162,8 @@ if __name__ == "__main__":
                 for g in [ghus[e].ag[t], ghus[e].pg[t]]:
                     for _, (_, _, prob) in g.items():
                         J += r * tr.log(prob)
-                # avg_a[t] += ghus[e].a[t]
             saturation.extend(ghus[e].saturation())
+        J /= num_episodes
         print("Autodiff...")
         J.backward()
         
@@ -178,9 +181,9 @@ if __name__ == "__main__":
             (avg_rewards[epoch], rewards.min(), rewards.max(), grad_norms[epoch],
             np.mean(saturation),np.min(saturation),np.max(saturation)))
         
-        if epoch > 0 and epoch % 100 == 0:
-            yn = input("Continue? [y/n]")
-            if yn == "n": break
+        # if epoch > 0 and epoch % 100 == 0:
+        #     yn = input("Continue? [y/n]")
+        #     if yn == "n": break
     
     pt.subplot(2,1,1)
     pt.plot(avg_rewards[:epoch+1])
