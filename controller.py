@@ -36,7 +36,7 @@ class Controller(nn.Module):
         # activity
         for q in self.layer_sizes:
             gates = self.activity_readouts[q](h).flatten()
-            choice = tr.multinomial(gates, 1) if override is None else override[q]
+            choice = tr.multinomial(gates, 1) if override is None else tr.tensor([override[q]])
             action = self.incoming[q][choice]
             prob = gates[choice]
             activity[q] = (gates, action, prob)

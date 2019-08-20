@@ -32,6 +32,7 @@ if __name__ == "__main__":
     for p,s,t in associations:
         q,r = ghu.pathways[p]
         assert(codec.decode(q, tr.mv( ghu.W[0][p], codec.encode(r, s))) == t)
+    ghu_init = ghu
     
     # Optimization settings
     num_epochs = 50
@@ -55,9 +56,7 @@ if __name__ == "__main__":
             echo_symbol = np.random.choice(symbols[1:])
             
             # Initialize a GHU with controller/codec and default associations
-            ghu = GatedHebbianUnit(
-                layer_sizes, pathways, controller, codec, plastic=plastic)
-            ghu.associate(associations)
+            ghu = ghu_init.clone()
             ghus.append(ghu)
 
             # Initialize layers
