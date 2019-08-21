@@ -10,7 +10,7 @@ if __name__ == "__main__":
     print("*******************************************************")
     
     # GHU settings
-    num_symbols = 6
+    num_symbols = 4
     layer_sizes = {"rinp": 64, "rout":64}
     hidden_size = 16
     plastic = []
@@ -34,12 +34,12 @@ if __name__ == "__main__":
     ghu_init = ghu
     
     # Optimization settings
-    num_epochs = 600
-    num_episodes = 100	
+    num_epochs = 800
+    num_episodes = 200	
     max_time = 6
-    list_symbols = 7
+    list_symbols = 4
     min_length = 3
-    max_length = 6
+    max_length = 3
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
     learning_rate = .003
@@ -52,11 +52,11 @@ if __name__ == "__main__":
 
         for episode in range(num_episodes):
             separator = symbols[0]
-            list_length = np.random.randint(min_length, max_length)
+            list_length = np.random.randint(min_length, max_length+1)
             inputs = np.array([separator]*(list_length+1))
-            inputs[:-1] = np.random.choice(symbols[1:list_symbols], size=list_length, replace=False)
+            inputs[:-1] = np.random.choice(symbols[1:list_symbols+1], size=list_length, replace=False)
             #print("inputs",inputs)
-            targets = [s for s in inputs if int(s)>3]
+            targets = [s for s in inputs if int(s)>2]
             #print("targets", targets)
             ghu = ghu_init.clone()
             ghus.append(ghu)
@@ -115,6 +115,9 @@ if __name__ == "__main__":
         print("Avg reward = %.2f (%.2f, %.2f), |grad| = %f, saturation=%f (%f,%f)" %
             (avg_rewards[epoch], rewards.min(), rewards.max(), grad_norms[epoch],
             np.mean(saturation),np.min(saturation),np.max(saturation)))
+
+        if avg_rewards[epoch]> -0.1:
+        	break
 
 
     pt.subplot(2,1,1)
