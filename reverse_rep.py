@@ -38,7 +38,7 @@ if __name__ == "__main__":
     codec = Codec(layer_sizes, symbols, rho=.999)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
     # controller = Controller(layer_sizes, pathways, hidden_size, input_keys=["m","rinp"])
-    controller.rnn.weight_hh_l0.data = 1*tr.eye(hidden_size) # favor repeated actions
+    # controller.rnn.weight_hh_l0.data = 1*tr.eye(hidden_size) # favor repeated actions
 
     # Sanity check
     ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec, plastic=plastic)
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     
     
     # Optimization settings
-    num_epochs = 100
+    num_epochs = 500
     num_episodes = 20000
     list_symbols = 4
     min_length = 3
@@ -128,6 +128,16 @@ if __name__ == "__main__":
             if verbose > 1 and episode < 5: print("Assessing reward...")
             outputs_ = [out for out in outputs if out != separator]
             reward = -lvd(outputs_, targets)
+            
+            # Additional term to penalize time-steps where actions did not match
+            matches = []
+            for t in range(1, max_time):
+                for q in ghu.layer_sizes.keys():
+                    matches.append(ghu.ag[t-1][q][1] == ghu.ag[t][q][1])
+                for p in ghu.plastic:
+                    matches.append(ghu.pg[t-1][p][1] == ghu.pg[t][p][1])
+            reward -= float(np.array(matches).sum()) / len(matches)
+
             rewards[episode] = reward
 
             if episode < 5:
