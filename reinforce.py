@@ -64,12 +64,13 @@ def reinforce(ghu_init, num_epochs, num_episodes, episode_duration, training_exa
             # Assess reward: negative LVD after separator filtering
             if verbose > 1 and episode < 5: print("Assessing reward...")
             r = reward(ghu, targets, outputs)
+            R = r.sum()
             rewards.append(r)
 
             if verbose > 1 and episode < 5:
                 print("Epoch %d, episode %d: reverse %s -> %s vs %s, R=%f" % (
-                    epoch, episode, list(inputs), list(outputs), list(targets), r))
-            elif verbose > 2 and reward > best_reward:
+                    epoch, episode, list(inputs), list(outputs), list(targets), R))
+            elif verbose > 2 and R > best_reward:
                 print("Epoch %d, episode %d: reverse %s -> %s vs %s, R=%f" % (
                     epoch, episode, list(inputs), list(outputs), list(targets), reward))
                 best_reward = reward
@@ -84,23 +85,25 @@ def reinforce(ghu_init, num_epochs, num_episodes, episode_duration, training_exa
                     print(t,"pla",str(hrl))
                 print(t,{k: codec.decode(k,ghu.v[episode_duration][k]) for k in ghu.layer_sizes})
 
-            if r > best_reward: best_reward = r
+            if R > best_reward: best_reward = R
 
-        # Compute baselined returns (reward - average)
+        # Compute baselined rewards-to-go
         rewards = np.array(rewards)
-        avg_rewards[epoch] = rewards.mean()
-        returns = tr.tensor(rewards - avg_rewards[epoch]).float()
-        
+        rewards_to_go = rewards.sum(axis=1)[:,np.newaxis] - rewards.cumsum(axis=1) + rewards
+        avg_rewards_to_go = rewards_to_go.mean(axis=0)
+        baselined_rewards_to_go = tr.tensor(rewards_to_go - avg_rewards_to_go[np.newaxis,:]).float()
+        avg_rewards[epoch] = avg_rewards_to_go[0]
+
         # Accumulate policy gradient
         print("Calculating pre-gradient...")
         J = 0.
         saturation = []
         for e in range(num_episodes):
-            r = returns[e]
             for t in range(episode_duration):
-                for g in [ghus[e].ag[t], ghus[e].pg[t]]:
-                    for _, (_, _, prob) in g.items():
-                        J += r * tr.log(prob)
+                r = baselined_rewards_to_go[e,t]
+                J += r * tr.sum(tr.log(tr.cat([prob
+                    for g in [ghus[e].ag[t], ghus[e].pg[t]]
+                        for _, (_, _, prob) in g.items()])))
             saturation.extend(ghus[e].saturation())
         J *= 1./num_episodes
         print("Autodiff...")

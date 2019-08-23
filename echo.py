@@ -58,9 +58,9 @@ if __name__ == "__main__":
     def reward(ghu, targets, outputs):
         outputs_ = [out for out in outputs if out != separator]
         _, d = lvd(outputs_, targets)
-        r = 0. 
+        r = np.zeros(len(outputs))
         for i in range(1,d.shape[0]):
-            r += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
+            r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
         return r
             
     # Optimization settings
