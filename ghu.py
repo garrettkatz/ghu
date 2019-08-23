@@ -35,13 +35,16 @@ class GatedHebbianUnit(object):
         self.pg = {}
 
     def clone(self):
-        # copies weight matrices but resets time to zero
+        # copies initial activity and weight matrices at time 0
         ghu = GatedHebbianUnit(
             layer_sizes = self.layer_sizes,
             pathways = self.pathways,
             controller = self.controller,
             codec = self.codec,
             plastic = self.plastic)
+        ghu.v = {t:
+            {q: self.v[t][q].clone().detach() for q in self.layer_sizes.keys()}
+            for t in [-1, 0]}
         ghu.W = {0: {p: self.W[0][p].clone().detach() for p in self.pathways.keys()}}
         return ghu
 
