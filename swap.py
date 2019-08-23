@@ -46,19 +46,28 @@ if __name__ == "__main__":
         targets = inputs[::-1]
         return inputs, targets
     
-    # reward calculation from LVD
+    # # reward calculation from LVD
+    # def reward(ghu, targets, outputs):
+    #     # Assess reward: negative LVD after separator filtering
+    #     outputs_ = [out for out in outputs if out != separator]
+    #     l, _ = lvd(outputs_, targets)
+    #     return -l
+    
+    # reward calculation based on individual steps
     def reward(ghu, targets, outputs):
-        # Assess reward: negative LVD after separator filtering
         outputs_ = [out for out in outputs if out != separator]
-        r = -lvd(outputs_, targets)
+        _, d = lvd(outputs_, targets)
+        r = 0. 
+        for i in range(1,d.shape[0]):
+            r += 1. if i < d.shape[1] and d[i,i] == d[i-1,i-1] else -1.
         return r
             
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu_init,
         num_epochs = 100,
-        num_episodes = 100,
-        episode_duration = 4,
+        num_episodes = 300,
+        episode_duration = 3,
         training_example = training_example,
         reward = reward,
         learning_rate = .005)

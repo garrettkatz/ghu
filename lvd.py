@@ -1,6 +1,7 @@
 import numpy as np
 
 def lvd(s, t):
+    # d[i,j] = num edits to transform s[:i] into t[:j]
 
     m, n = len(s), len(t)
     d = np.empty((m+1,n+1), dtype=int)
@@ -15,7 +16,7 @@ def lvd(s, t):
                 d[i+1, j] + 1,
                 d[i, j] + 1)
 
-    return d[m,n]
+    return d[m,n], d
 
 if __name__ == "__main__":
 
