@@ -51,12 +51,14 @@ if __name__ == "__main__":
         inputs[0]= key[0]
         inputs[1]= val[0]
         inputs[2]= key[1]
-        inputs[3]= val[0]
+        inputs[3]= val[1]
         new = np.random.choice(key, size=1, replace=False)
         inputs[5] = new[0]
         #print("inputs",inputs)
-        targets = [lookup[inputs[5]]]
-        #print("targets", targets)
+        targets = [lookup[new[0]]]
+        # print("targets", targets)
+        # print("lookup",lookup)
+        # print("______________________")
         return inputs, targets
     
     # # reward calculation from LVD
