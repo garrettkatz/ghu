@@ -45,7 +45,7 @@ class Controller(nn.Module):
         action = tr.bernoulli(gates) if override is None else override["plasticity"]
         probs = tr.where(action == 0, 1 - gates, gates)
         for i, p in enumerate(self.plastic):
-            plasticity[p] = (gates[i], action[i], probs[i])
+            plasticity[p] = (gates[i], action[i], probs[[i]])
                 
         return activity, plasticity, h
 

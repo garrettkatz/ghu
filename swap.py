@@ -55,11 +55,12 @@ if __name__ == "__main__":
     
     # reward calculation based on individual steps
     def reward(ghu, targets, outputs):
+        idx = [i for i, out in enumerate(outputs) if out != separator]
         outputs_ = [out for out in outputs if out != separator]
         _, d = lvd(outputs_, targets)
         r = np.zeros(len(outputs))
         for i in range(1,d.shape[0]):
-            r[-1] += 1. if i < d.shape[1] and d[i,i] == d[i-1,i-1] else -1.
+            r[idx[i-1]] = +1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
         return r
             
     # Optimization settings
