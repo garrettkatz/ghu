@@ -11,9 +11,9 @@ if __name__ == "__main__":
     print("*******************************************************")
     
     # GHU settings
-    num_symbols = 4
-    layer_sizes = {"rinp": 128, "rout":128, "rtemp":128}
-    hidden_size = 32
+    num_symbols = 5
+    layer_sizes = {"rinp": 512, "rout":512, "rtemp":512}
+    hidden_size = 128
     plastic = []
 
     symbols = [str(a) for a in range(num_symbols+1)]
@@ -40,9 +40,9 @@ if __name__ == "__main__":
     def training_example():
         # Randomly choose echo symbol (excluding 0 separator)
         #max_time = 6
-        list_symbols = 4
-        min_length = 2
-        max_length = 2
+        list_symbols = 5
+        min_length = 3
+        max_length = 3
         list_length = np.random.randint(min_length, max_length+1)
         inputs = np.array([separator]*(list_length))
         inputs[:] = np.random.choice(symbols[1:list_symbols+1], size=list_length, replace=False)
@@ -61,8 +61,8 @@ if __name__ == "__main__":
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu_init,
-        num_epochs = 250,
-        num_episodes = 100,
+        num_epochs = 800,
+        num_episodes = 200,
         episode_duration = 3,
         training_example = training_example,
         reward = reward,
