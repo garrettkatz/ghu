@@ -33,7 +33,7 @@ if __name__ == "__main__":
     ghu.associate(associations)
     for p,s,t in associations:
         q,r = ghu.pathways[p]
-        assert(codec.decode(q, tr.mv( ghu.W[0][p], codec.encode(r, s))) == t)
+        assert(codec.decode(q, tr.mv( ghu.W[p], codec.encode(r, s))) == t)
 
     # Initialize layers
     ghu.v[0]["rinp"] = codec.encode("rinp", "0")

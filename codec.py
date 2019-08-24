@@ -1,11 +1,14 @@
+import numpy as np
 import torch as tr
 
 class Codec(object):
-    def __init__(self, layer_sizes, symbols, rho = .999):
+    def __init__(self, layer_sizes, symbols, rho = .999, requires_grad=False):
         self.rho = rho
         self.lookup = {
             k: {
-                s: (rho * tr.sign(tr.randn(size))).requires_grad_()
+                s: tr.tensor(
+                    rho * np.sign(np.random.randn(size)).astype(np.float32),
+                    requires_grad=requires_grad)
                 for s in symbols}
             for k, size in layer_sizes.items()}
     def encode(self, layer, symbol):

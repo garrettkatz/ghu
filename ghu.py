@@ -23,9 +23,8 @@ class GatedHebbianUnit(object):
         self.controller = controller
         self.codec = codec
         self.plastic = plastic
-        self.W = {0:
-            {p: tr.zeros(layer_sizes[q], layer_sizes[r])
-                for p, (q,r) in pathways.items()}}
+        self.W = {p: tr.zeros(layer_sizes[q], layer_sizes[r])
+            for p, (q,r) in pathways.items()}
         self.v = {t:
             {q: tr.zeros(size)
                 for q, size in layer_sizes.items()}
@@ -35,7 +34,8 @@ class GatedHebbianUnit(object):
         self.pg = {}
 
     def clone(self):
-        # copies initial activity and weight matrices at time 0
+        # copies associative weight matrices and initial activity
+        # assumes no ticks have been called yet
         ghu = GatedHebbianUnit(
             layer_sizes = self.layer_sizes,
             pathways = self.pathways,
@@ -45,7 +45,7 @@ class GatedHebbianUnit(object):
         ghu.v = {t:
             {q: self.v[t][q].clone().detach() for q in self.layer_sizes.keys()}
             for t in [-1, 0]}
-        ghu.W = {0: {p: self.W[0][p].clone().detach() for p in self.pathways.keys()}}
+        ghu.W = {p: self.W[p].clone().detach() for p in self.pathways.keys()}
         return ghu
 
     def rehebbian(self, W, x, y):
@@ -64,25 +64,24 @@ class GatedHebbianUnit(object):
 
             # Controller (activity gate, plasticity gate, hidden vector)
             self.ag[t], self.pg[t], self.h[t] = self.controller(
-                self.v[t], self.h[t-1], override=overrides[t-T])
+                self.v[t] if not detach else
+                    {q: v.clone().detach() for q, v in self.v[t].items()},
+                self.h[t-1], override=overrides[t-T])
     
-            # Associative learning
-            self.W[t+1] = dict(self.W[t])
-            # for p, (q,r) in self.pathways.items():
-            #     if p not in self.plastic: continue
-            for p in self.plastic:
-                q, r = self.pathways[p]
-                dW = self.rehebbian(self.W[t][p], self.v[t-1][r], self.v[t][q])
-                _, a, _ = self.pg[t][p]
-                if detach: a = a.detach()
-                self.W[t+1][p] = self.W[t][p] + a * dW
-
             # Associative recall
             self.v[t+1] = {}
             for q in self.layer_sizes.keys():
                 _, p, _ = self.ag[t][q]
                 _, r = self.pathways[p]
-                self.v[t+1][q] = tr.tanh(tr.mv(self.W[t][p], self.v[t][r]))
+                self.v[t+1][q] = tr.tanh(tr.mv(self.W[p], self.v[t][r]))
+
+            # Associative learning
+            for p in self.plastic:
+                _, a, _ = self.pg[t][p]
+                if a == 0: continue
+                q, r = self.pathways[p]
+                dW = self.rehebbian(self.W[p], self.v[t-1][r], self.v[t][q])
+                self.W[p] = self.W[p] + dW
 
     def associate(self, associations):
         T = len(self.W)-1
@@ -90,23 +89,14 @@ class GatedHebbianUnit(object):
             q, r = self.pathways[p]
             x = self.codec.encode(r, s)
             y = self.codec.encode(q, t)
-            dW = self.rehebbian(self.W[T][p], x, y)
-            self.W[T][p] = self.W[T][p] + dW
+            dW = self.rehebbian(self.W[p], x, y)
+            self.W[p] = self.W[p] + dW
     
     def saturation(self):
-        # return [min(float(prob), float(1. - prob))
         return [float(prob)
             for g in [self.ag, self.pg]
                 for gates in g.values()
                     for (_, _, prob) in gates.values()]
-        # s = []
-        # for t, g in self.ag.items():
-        #     for _, (_, _, prob) in g.items():
-        #         s.append(min(float(prob), float(1. - prob)))
-        # for t, g in self.pg.items():
-        #     for p,(_, _, prob) in g.items():
-        #         s.append(min(float(prob), float(1. - prob)))
-        # return s
 
 def default_initializer(register_names, symbols):
     pathways = {

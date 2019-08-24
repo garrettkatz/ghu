@@ -44,7 +44,7 @@ if __name__ == "__main__":
     ghu.associate(associations)
     for p, s, t in associations:
         q, r = ghu.pathways[p]
-        assert(codec.decode(q, tr.mv( ghu.W[0][p], codec.encode(r, s))) == t)
+        assert(codec.decode(q, tr.mv( ghu.W[p], codec.encode(r, s))) == t)
     ghu_init = ghu
 
     # Initialize layers
@@ -94,10 +94,11 @@ if __name__ == "__main__":
     avg_rewards, grad_norms = reinforce(
         ghu_init,
         num_epochs = 100,
-        num_episodes = 20000,
+        num_episodes = 10000,
         episode_duration = 2*max_length+1,
         training_example = training_example,
         reward = reward,
+        task = "reverse",
         learning_rate = .1)
     
     # pt.subplot(2,1,1)
