@@ -14,9 +14,9 @@ if __name__ == "__main__":
     print("*******************************************************")
     
     # GHU settings
-    num_symbols = 5
-    layer_sizes = {"rinp": 64, "rout":64}
-    hidden_size = 16
+    num_symbols =4
+    layer_sizes = {"rinp": 128, "rout":128}
+    hidden_size = 32
     plastic = []
 
     symbols = [str(a) for a in range(num_symbols)]
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     ghu.associate(associations)
     for p,s,t in associations:
         q,r = ghu.pathways[p]
-        assert(codec.decode(q, tr.mv( ghu.W[p], codec.encode(r, s))) == t)
+        assert(codec.decode(q, tr.mv( ghu.W[0][p], codec.encode(r, s))) == t)
     ghu_init = ghu
 
     # Initialize layers
@@ -47,28 +47,29 @@ if __name__ == "__main__":
         targets = [inputs[0] for i in range(int(inputs[0]))]
         return inputs, targets
     
-    # reward calculation from LVD
-    def reward(ghu, targets, outputs):
-        # Assess reward: negative LVD after separator filtering
-        outputs_ = [out for out in outputs if out != separator]
-        l, _ = lvd(outputs_, targets)
-        return -l
-
-    # # reward calculation based on individual steps
+    # # reward calculation from LVD
     # def reward(ghu, targets, outputs):
+    #     # Assess reward: negative LVD after separator filtering
     #     outputs_ = [out for out in outputs if out != separator]
-    #     _, d = lvd(outputs_, targets)
-    #     r = np.zeros(len(outputs))
-    #     for i in range(1,d.shape[0]):
-    #         r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
-    #     return r
-            
+    #     l, _ = lvd(outputs_, targets)
+    #     return -l
+
+    # reward calculation based on individual steps
+    def reward(ghu, targets, outputs):
+        outputs_ = [out for out in outputs if out != separator]
+        _, d = lvd(outputs_, targets)
+        r = np.zeros(len(outputs))
+        for i in range(1,d.shape[0]):
+            r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
+        return r
+    
+
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu_init,
-        num_epochs = 200,
-        num_episodes = 200,
-        episode_duration = 6,
+        num_epochs = 800,
+        num_episodes = 500,
+        episode_duration = 4,
         training_example = training_example,
         reward = reward,
         task = "echov2",
