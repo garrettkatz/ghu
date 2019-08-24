@@ -78,26 +78,36 @@ if __name__ == "__main__":
         r = np.zeros(len(outputs))
         for i in range(1,d.shape[0]):
             r[idx[i-1]] = +1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
+
+        # Additional term to penalize time-steps where actions did not match
+        for t in range(1, len(outputs)):
+            matches = []
+            for q in ghu.layer_sizes.keys():
+                matches.append(ghu.ag[t-1][q][1] == ghu.ag[t][q][1])
+            for p in ghu.plastic:
+                matches.append(ghu.pg[t-1][p][1] == ghu.pg[t][p][1])
+            r[t] -= (1. - float(sum(matches)) / len(matches)) / len(outputs)
+
         return r
     
     # Optimization
     avg_rewards, grad_norms = reinforce(
         ghu_init,
         num_epochs = 100,
-        num_episodes = 10000,
+        num_episodes = 20000,
         episode_duration = 2*max_length+1,
         training_example = training_example,
         reward = reward,
         learning_rate = .1)
     
-    pt.subplot(2,1,1)
-    pt.plot(avg_rewards)
-    pt.title("Learning curve")
-    pt.ylabel("Avg Reward")
-    pt.subplot(2,1,2)
-    pt.plot(grad_norms)
-    pt.xlabel("Epoch")
-    pt.ylabel("||Grad||")
-    pt.show()
+    # pt.subplot(2,1,1)
+    # pt.plot(avg_rewards)
+    # pt.title("Learning curve")
+    # pt.ylabel("Avg Reward")
+    # pt.subplot(2,1,2)
+    # pt.plot(grad_norms)
+    # pt.xlabel("Epoch")
+    # pt.ylabel("||Grad||")
+    # pt.show()
 
 
