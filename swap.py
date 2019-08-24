@@ -66,12 +66,13 @@ if __name__ == "__main__":
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu_init,
-        num_epochs = 100,
-        num_episodes = 300,
+        num_epochs = 200,
+        num_episodes = 500,
         episode_duration = 3,
         training_example = training_example,
         reward = reward,
-        learning_rate = .005)
+        task = "swap",
+        learning_rate = .1)
     
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)

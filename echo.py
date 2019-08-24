@@ -72,7 +72,8 @@ if __name__ == "__main__":
         episode_duration = 5,
         training_example = training_example,
         reward = reward,
-        learning_rate = .001)
+        task = "echo",
+        learning_rate = .1)
 
     
     # # Optimization settings
