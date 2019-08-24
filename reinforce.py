@@ -22,14 +22,14 @@ def pretrain(max_time, max_iters, learning_rate, ghu_init, symbols, verbose=True
             p.grad *= 0 # Clear gradients for next epoch
 
 
-def reinforce(ghu_init, num_epochs, num_episodes, episode_duration, training_example, reward, learning_rate, verbose=2):
+def reinforce(ghu_init, num_epochs, num_episodes, episode_duration, training_example, reward,task, learning_rate=0.1, verbose=2):
     # ghu_init: initial ghu cloned for each episode
     # training_example: function that produces an example
     # reward: function of ghu, target/actual output
 
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
-    learning_rate = .1
+    #learning_rate = .1
     
     # Train
     for epoch in range(num_epochs):
@@ -68,11 +68,11 @@ def reinforce(ghu_init, num_epochs, num_episodes, episode_duration, training_exa
             rewards.append(r)
 
             if verbose > 1 and episode < 5:
-                print("Epoch %d, episode %d: reverse %s -> %s vs %s, R=%f" % (
-                    epoch, episode, list(inputs), list(outputs), list(targets), R))
+                print("Epoch %d, episode %d: task: %s %s -> %s vs %s, R=%f" % (
+                    epoch, episode, task,list(inputs), list(outputs), list(targets), R))
             elif verbose > 2 and R > best_reward:
-                print("Epoch %d, episode %d: reverse %s -> %s vs %s, R=%f" % (
-                    epoch, episode, list(inputs), list(outputs), list(targets), reward))
+                print("Epoch %d, episode %d: task: %s %s -> %s vs %s, R=%f" % (
+                    epoch, episode,task, list(inputs), list(outputs), list(targets), reward))
                 best_reward = reward
                 for t in range(episode_duration):
                     print(t,{k: codec.decode(k,ghu.v[t][k]) for k in ghu.layer_sizes})
@@ -118,7 +118,7 @@ def reinforce(ghu_init, num_epochs, num_episodes, episode_duration, training_exa
             p.grad *= 0 # Clear gradients for next epoch
 
         print("Avg reward = %.2f (%.2f, %.2f), |grad| = %f, saturation=%f (%f,%f)" %
-            (avg_rewards[epoch], rewards.sum(axis=1).min(), rewards.sum(axis=1).max(), grad_norms[epoch],
+            (avg_rewards[epoch], rewards.min(), rewards.max(), grad_norms[epoch],
             np.mean(saturation),np.min(saturation),np.max(saturation)))
         
         # if epoch > 0 and epoch % 100 == 0:

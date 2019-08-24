@@ -51,11 +51,20 @@ if __name__ == "__main__":
         #print("targets", targets)
         return inputs, targets
     
-    # reward calculation from LVD
+    # # reward calculation from LVD
+    # def reward(ghu, targets, outputs):
+    #     # Assess reward: negative LVD after separator filtering
+    #     outputs_ = [out for out in outputs if out != separator]
+    #     r = -lvd(outputs_, targets)
+    #     return r
+
+    # reward calculation based on individual steps
     def reward(ghu, targets, outputs):
-        # Assess reward: negative LVD after separator filtering
         outputs_ = [out for out in outputs if out != separator]
-        r = -lvd(outputs_, targets)
+        _, d = lvd(outputs_, targets)
+        r = np.zeros(len(outputs))
+        for i in range(1,d.shape[0]):
+            r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
         return r
             
     # Optimization settings
@@ -66,7 +75,8 @@ if __name__ == "__main__":
         episode_duration = 3,
         training_example = training_example,
         reward = reward,
-        learning_rate = .003)
+        task = "max",
+        learning_rate = .03)
 
     # #Training
     # for epoch in range(num_epochs):
