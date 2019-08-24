@@ -83,8 +83,8 @@ if __name__ == "__main__":
     # Optimization
     avg_rewards, grad_norms = reinforce(
         ghu_init,
-        num_epochs = 10,
-        num_episodes = 2000,
+        num_epochs = 100,
+        num_episodes = 10000,
         episode_duration = 2*max_length+1,
         training_example = training_example,
         reward = reward,

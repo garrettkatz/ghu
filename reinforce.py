@@ -29,7 +29,6 @@ def reinforce(ghu_init, num_epochs, num_episodes, episode_duration, training_exa
 
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
-    learning_rate = .1
     
     # Train
     for epoch in range(num_epochs):
