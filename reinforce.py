@@ -117,7 +117,7 @@ def reinforce(ghu_init, num_epochs, num_episodes, episode_duration, training_exa
             p.grad *= 0 # Clear gradients for next epoch
 
         print("Avg reward = %.2f (%.2f, %.2f), |grad| = %f, saturation=%f (%f,%f)" %
-            (avg_rewards[epoch], rewards.min(), rewards.max(), grad_norms[epoch],
+            (avg_rewards[epoch], rewards.sum(axis=1).min(), rewards.sum(axis=1).max(), grad_norms[epoch],
             np.mean(saturation),np.min(saturation),np.max(saturation)))
         
         # if epoch > 0 and epoch % 100 == 0:
@@ -125,3 +125,4 @@ def reinforce(ghu_init, num_epochs, num_episodes, episode_duration, training_exa
         #     if yn == "n": break
 
     return avg_rewards, grad_norms
+
