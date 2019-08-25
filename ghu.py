@@ -30,8 +30,11 @@ class GatedHebbianUnit(object):
                 for q, size in layer_sizes.items()}
             for t in [-1, 0]}
         self.h = {-1: tr.zeros(1,1,controller.hidden_size)}
-        self.ag = {}
-        self.pg = {}
+        self.al = {}
+        self.pl = {}
+        self.ac = {}
+        self.pc = {}
+        self.action = {}
 
     def clone(self):
         # copies associative weight matrices and initial activity
@@ -55,33 +58,38 @@ class GatedHebbianUnit(object):
         dW = tr.ger(g*y - tr.mv(W, x), x) / n # ger is outer product
         return dW
 
-    def tick(self, num_steps=1, detach=True, overrides=[None]):
-        # overrides passed to controller
-        # detach gates so that they are treated as actions on environment?
+    def tick(self, num_steps=1, detach=True, choices=[None]):
+        # choices passed to controller
 
-        T = len(self.ag)
+        T = len(self.al)
         for t in range(T, T+num_steps):
 
-            # Controller (activity gate, plasticity gate, hidden vector)
-            self.ag[t], self.pg[t], self.h[t] = self.controller(
+            # Controller
+            _, choices, likelihoods, self.h[t] = self.controller.act(
                 self.v[t] if not detach else
                     {q: v.clone().detach() for q, v in self.v[t].items()},
-                self.h[t-1], override=overrides[t-T])
+                self.h[t-1], choices=choices[t-T])
+    
+            self.ac[t], self.pc[t] = choices
+            self.al[t], self.pl[t] = likelihoods
+            self.action[t] = {}, []
     
             # Associative recall
             self.v[t+1] = {}
             for q in self.layer_sizes.keys():
-                _, p, _ = self.ag[t][q]
+                p = self.controller.incoming[q][self.ac[t][q]]
                 _, r = self.pathways[p]
                 self.v[t+1][q] = tr.tanh(tr.mv(self.W[p], self.v[t][r]))
+                self.action[t][0][q] = p
 
             # Associative learning
-            for p in self.plastic:
-                _, a, _ = self.pg[t][p]
+            for i,p in enumerate(self.plastic):
+                a = self.pc[t][0,0,i]
                 if a == 0: continue
                 q, r = self.pathways[p]
                 dW = self.rehebbian(self.W[p], self.v[t-1][r], self.v[t][q])
                 self.W[p] = self.W[p] + dW
+                self.action[t][1].append(p)
 
     def associate(self, associations):
         T = len(self.W)-1
@@ -93,10 +101,10 @@ class GatedHebbianUnit(object):
             self.W[p] = self.W[p] + dW
     
     def saturation(self):
-        return [float(prob)
-            for g in [self.ag, self.pg]
-                for gates in g.values()
-                    for (_, _, prob) in gates.values()]
+        return tr.cat([l
+            for t in self.al.keys() for l in
+                [xl.view(-1) for xl in list(self.al[t].values()) + [self.pl[t]]]]).detach().numpy()
+
 
 def default_initializer(register_names, symbols):
     pathways = {
