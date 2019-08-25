@@ -11,13 +11,13 @@ if __name__ == "__main__":
     print("*******************************************************")
     
     # GHU settings
-    num_symbols = [str(a) for a in range(5)]
-    alpha = ["a","b","c","d"]
-    layer_sizes = {"rinp": 256, "rout":256}
-    hidden_size = 64
+    num_symbols = [str(a) for a in range(4)]
+    alpha = ["a","b","c",]
+    layer_sizes = {"rinp": 512, "rout":512, "rtemp":512}
+    hidden_size = 128
     plastic = []
 
-    symbols = num_symbols+alpha
+    symbols = num_symbols+alpha+[":"]
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
 
@@ -42,8 +42,8 @@ if __name__ == "__main__":
     def training_example():
         # Randomly choose echo symbol (excluding 0 separator)
         inputs = np.array([separator]*6)
-        key, val = np.array([separator]*2), np.array([separator]*2)
-        key = np.random.choice(symbols[1:5], size=2, replace=False)
+        #key, val = np.array([separator]*2), np.array([separator]*2)
+        key = np.random.choice(num_symbols[1:], size=2, replace=False)
         #key2 = np.random.choice(symbols[3:5], size=1, replace=False)
         val = np.random.choice(alpha[:], size=2, replace=False)
         #val2 = np.random.choice(alpha[2:4], size=1, replace=False)
@@ -52,6 +52,7 @@ if __name__ == "__main__":
         inputs[1]= val[0]
         inputs[2]= key[1]
         inputs[3]= val[1]
+        inputs[4]=":"
         new = np.random.choice(key, size=1, replace=False)
         inputs[5] = new[0]
         #print("inputs",inputs)
@@ -81,12 +82,12 @@ if __name__ == "__main__":
     avg_rewards, grad_norms = reinforce(
         ghu_init,
         num_epochs = 500,
-        num_episodes = 1000,
+        num_episodes = 2000,
         episode_duration = 4,
         training_example = training_example,
         reward = reward,
-        task = "filter",
-        learning_rate = .003)
+        task = "recall",
+        learning_rate = .01)
     
     # # Optimization settings
     # num_epochs = 10000
@@ -174,11 +175,11 @@ if __name__ == "__main__":
 
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)
-    pt.title("Learning curve")
+    pt.title("Learning curve for recall")
     pt.ylabel("Avg Reward")
     pt.subplot(2,1,2)
     pt.plot(grad_norms)
     pt.xlabel("Epoch")
     pt.ylabel("||Grad||")
-    pt.savefig('filter.png')
+    pt.savefig('recall.png')
     pt.show()
