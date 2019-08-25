@@ -11,7 +11,7 @@ if __name__ == "__main__":
     print("*******************************************************")
     
     # GHU settings
-    num_symbols = 5
+    num_symbols = 4
     layer_sizes = {"rinp": 512, "rout":512, "rtemp":512}
     hidden_size = 128
     plastic = []
@@ -40,12 +40,12 @@ if __name__ == "__main__":
     def training_example():
         # Randomly choose echo symbol (excluding 0 separator)
         #max_time = 6
-        list_symbols = 5
+        list_symbols = 4
         min_length = 3
         max_length = 3
         list_length = np.random.randint(min_length, max_length+1)
         inputs = np.array([separator]*(list_length))
-        inputs[:] = np.random.choice(symbols[1:list_symbols+1], size=list_length, replace=False)
+        inputs[:] = np.random.choice(symbols[1:list_symbols+1], size=list_length, replace=True)
         #print("inputs",inputs)
         targets = [max(inputs)]
         #print("targets", targets)
@@ -71,12 +71,12 @@ if __name__ == "__main__":
     avg_rewards, grad_norms = reinforce(
         ghu_init,
         num_epochs = 800,
-        num_episodes = 200,
+        num_episodes = 600,
         episode_duration = 3,
         training_example = training_example,
         reward = reward,
         task = "max",
-        learning_rate = .03)
+        learning_rate = .006)
 
     # #Training
     # for epoch in range(num_epochs):
@@ -156,7 +156,7 @@ if __name__ == "__main__":
 
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)
-    pt.title("Learning curve")
+    pt.title("Learning curve for max")
     pt.ylabel("Avg Reward")
     pt.subplot(2,1,2)
     pt.plot(grad_norms)
