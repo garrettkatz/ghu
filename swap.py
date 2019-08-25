@@ -72,7 +72,8 @@ if __name__ == "__main__":
         training_example = training_example,
         reward = reward,
         task = "swap",
-        learning_rate = .1)
+        learning_rate = .1,
+        verbose = 1)
     
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)

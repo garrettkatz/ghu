@@ -34,6 +34,7 @@ class GatedHebbianUnit(object):
         self.pl = {}
         self.ac = {}
         self.pc = {}
+        self.action = {}
 
     def clone(self):
         # copies associative weight matrices and initial activity
@@ -71,6 +72,7 @@ class GatedHebbianUnit(object):
     
             self.ac[t], self.pc[t] = choices
             self.al[t], self.pl[t] = likelihoods
+            self.action[t] = {}, []
     
             # Associative recall
             self.v[t+1] = {}
@@ -78,6 +80,7 @@ class GatedHebbianUnit(object):
                 p = self.controller.incoming[q][self.ac[t][q]]
                 _, r = self.pathways[p]
                 self.v[t+1][q] = tr.tanh(tr.mv(self.W[p], self.v[t][r]))
+                self.action[t][0][q] = p
 
             # Associative learning
             for i,p in enumerate(self.plastic):
@@ -86,6 +89,7 @@ class GatedHebbianUnit(object):
                 q, r = self.pathways[p]
                 dW = self.rehebbian(self.W[p], self.v[t-1][r], self.v[t][q])
                 self.W[p] = self.W[p] + dW
+                self.action[t][1].append(p)
 
     def associate(self, associations):
         T = len(self.W)-1

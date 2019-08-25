@@ -21,7 +21,7 @@ if __name__ == "__main__":
     # layer_sizes = {"rinp": 64, "rout":64, "r0": 64, "r1": 64}
     # layer_sizes = {"rinp": 256, "rout": 256, "m": 256}
     layer_sizes = {q: 64 for q in register_names+["m"]}
-    hidden_size = 3
+    hidden_size = 10
     # plastic = ["%s<m"%q for q in register_names]
     plastic = ["rinp<m"]
 
@@ -79,31 +79,31 @@ if __name__ == "__main__":
         for i in range(1,d.shape[0]):
             r[idx[i-1]] = +1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
 
-        # Additional term to penalize time-steps where actions did not match
-        for t in range(1, len(outputs)):
-            matches = []
-            for q in ghu.layer_sizes.keys():
-                matches.append(ghu.ac[t-1][q] == ghu.ac[t][q])
-            for p in range(len(ghu.plastic)):
-                matches.append(ghu.pc[t-1][p] == ghu.pc[t][p])
-            r[t] -= (1. - float(sum(matches)) / len(matches)) / len(outputs)
+        # # Additional term to penalize time-steps where actions did not match
+        # for t in range(1, len(outputs)):
+        #     matches = []
+        #     for q in ghu.layer_sizes.keys():
+        #         matches.append(ghu.ac[t-1][q] == ghu.ac[t][q])
+        #     for p in range(len(ghu.plastic)):
+        #         matches.append(ghu.pc[t-1][p] == ghu.pc[t][p])
+        #     r[t] -= (1. - float(sum(matches)) / len(matches)) / len(outputs)
 
-        # Additional term to penalize empty outputs
-        if len(outputs_) == 0: r[-1] -= len(targets)
+        # # Additional term to penalize empty outputs
+        # if len(outputs_) == 0: r[-1] -= len(targets)
 
         return r
     
     # Optimization
     avg_rewards, grad_norms = reinforce(
         ghu_init,
-        num_epochs = 100,
+        num_epochs = 200,
         num_episodes = 5000,
-        # episode_duration = 2*max_length+1,
-        episode_duration = 3,
+        episode_duration = 2*max_length+1,
         training_example = training_example,
         reward = reward,
         task = "reverse",
-        learning_rate = .1)
+        learning_rate = .1,
+        verbose=2)
     
     # pt.subplot(2,1,1)
     # pt.plot(avg_rewards)

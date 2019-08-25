@@ -100,6 +100,7 @@ if __name__ == "__main__":
                 # rinp: <m, <rout, <rinp (3)
                 # rout: <rinp, <rout (2)
                 # m: <rinp, <m, inc, dec (4)
+            # (2**1 * product([3,2,4])) ** 2 = 2304
             # (2**1 * product([3,2,4])) ** 3 = 110592
             incoming_keys = list(controller.incoming.keys())
             action_overrides = it.product(*
