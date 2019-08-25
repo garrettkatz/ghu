@@ -54,8 +54,8 @@ if __name__ == "__main__":
   
     # training example generation
     list_symbols = 4
-    min_length = 3
-    max_length = 3
+    min_length = 2
+    max_length = 2
     def training_example():
         list_length = np.random.randint(min_length, max_length+1)
         inputs = np.array([separator]*(list_length+1))
@@ -83,10 +83,13 @@ if __name__ == "__main__":
         for t in range(1, len(outputs)):
             matches = []
             for q in ghu.layer_sizes.keys():
-                matches.append(ghu.ag[t-1][q][1] == ghu.ag[t][q][1])
-            for p in ghu.plastic:
-                matches.append(ghu.pg[t-1][p][1] == ghu.pg[t][p][1])
+                matches.append(ghu.ac[t-1][q] == ghu.ac[t][q])
+            for p in range(len(ghu.plastic)):
+                matches.append(ghu.pc[t-1][p] == ghu.pc[t][p])
             r[t] -= (1. - float(sum(matches)) / len(matches)) / len(outputs)
+
+        # Additional term to penalize empty outputs
+        if len(outputs_) == 0: r[-1] -= len(targets)
 
         return r
     
@@ -94,8 +97,9 @@ if __name__ == "__main__":
     avg_rewards, grad_norms = reinforce(
         ghu_init,
         num_epochs = 100,
-        num_episodes = 10000,
-        episode_duration = 2*max_length+1,
+        num_episodes = 5000,
+        # episode_duration = 2*max_length+1,
+        episode_duration = 3,
         training_example = training_example,
         reward = reward,
         task = "reverse",
