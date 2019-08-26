@@ -33,7 +33,10 @@ class Controller(nn.Module):
         self.input_keys = input_keys
         self.plastic = plastic
         self.hidden_size = hidden_size
-        self.rnn = nn.RNN(sum([layer_sizes[q] for q in input_keys]), hidden_size)
+        self.rnn = nn.RNN(
+            sum([layer_sizes[q] for q in input_keys]),
+            hidden_size,
+            nonlinearity='relu')
         self.incoming = { # pathways organized by destination layer
             q: [p for p, (q_,r) in pathways.items() if q_ == q]
             for q in self.layer_sizes}

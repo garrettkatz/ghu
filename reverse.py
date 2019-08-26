@@ -88,8 +88,8 @@ if __name__ == "__main__":
         #         matches.append(ghu.pc[t-1][p] == ghu.pc[t][p])
         #     r[t] -= (1. - float(sum(matches)) / len(matches)) / len(outputs)
 
-        # # Additional term to penalize empty outputs
-        # if len(outputs_) == 0: r[-1] -= len(targets)
+        # Additional term to penalize empty outputs
+        if len(outputs_) == 0: r[-1] -= len(targets)
 
         return r
     
@@ -97,12 +97,12 @@ if __name__ == "__main__":
     avg_rewards, grad_norms = reinforce(
         ghu_init,
         num_epochs = 200,
-        num_episodes = 5000,
+        num_episodes = 7000,
         episode_duration = 2*max_length+1,
         training_example = training_example,
         reward = reward,
         task = "reverse",
-        learning_rate = .1,
+        learning_rate = .25,
         verbose=2)
     
     # pt.subplot(2,1,1)
