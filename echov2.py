@@ -14,9 +14,9 @@ if __name__ == "__main__":
     print("*******************************************************")
     
     # GHU settings
-    num_symbols =4
-    layer_sizes = {"rinp": 128, "rout":128}
-    hidden_size = 32
+    num_symbols =5
+    layer_sizes = {"rinp": 256, "rout":256}
+    hidden_size = 64
     plastic = []
 
     symbols = [str(a) for a in range(num_symbols)]
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     ghu.associate(associations)
     for p,s,t in associations:
         q,r = ghu.pathways[p]
-        assert(codec.decode(q, tr.mv( ghu.W[0][p], codec.encode(r, s))) == t)
+        assert(codec.decode(q, tr.mv( ghu.W[p], codec.encode(r, s))) == t)
     ghu_init = ghu
 
     # Initialize layers
@@ -68,12 +68,13 @@ if __name__ == "__main__":
     avg_rewards, grad_norms = reinforce(
         ghu_init,
         num_epochs = 800,
-        num_episodes = 500,
-        episode_duration = 4,
+        num_episodes = 600,
+        episode_duration = 5,
         training_example = training_example,
         reward = reward,
         task = "echov2",
-        learning_rate = .005)
+        learning_rate = .008,
+        verbose = 1)
 
     
     # # Optimization settings
@@ -165,7 +166,7 @@ if __name__ == "__main__":
     
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)
-    pt.title("Learning curve")
+    pt.title("Learning curve of echov2")
     pt.ylabel("Avg Reward")
     pt.subplot(2,1,2)
     pt.plot(grad_norms)
