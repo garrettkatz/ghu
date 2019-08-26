@@ -70,13 +70,14 @@ if __name__ == "__main__":
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu_init,
-        num_epochs = 800,
-        num_episodes = 600,
+        num_epochs = 1200,
+        num_episodes = 2000,
         episode_duration = 3,
         training_example = training_example,
         reward = reward,
         task = "max",
-        learning_rate = .006)
+        learning_rate = .008,
+        verbose = 1)
 
     # #Training
     # for epoch in range(num_epochs):
