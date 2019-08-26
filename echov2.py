@@ -73,7 +73,7 @@ if __name__ == "__main__":
         training_example = training_example,
         reward = reward,
         task = "echov2",
-        learning_rate = .008,
+        learning_rate = 0.008,
         verbose = 1)
 
     
