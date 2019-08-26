@@ -14,9 +14,9 @@ if __name__ == "__main__":
     print("*******************************************************")
     
     # GHU settings
-    num_symbols =5
-    layer_sizes = {"rinp": 256, "rout":256}
-    hidden_size = 64
+    num_symbols =6
+    layer_sizes = {"rinp": 512, "rout":512}
+    hidden_size = 128
     plastic = []
 
     symbols = [str(a) for a in range(num_symbols)]
@@ -67,9 +67,9 @@ if __name__ == "__main__":
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu_init,
-        num_epochs = 800,
-        num_episodes = 600,
-        episode_duration = 5,
+        num_epochs = 1200,
+        num_episodes = 1000,
+        episode_duration = 6,
         training_example = training_example,
         reward = reward,
         task = "echov2",
@@ -172,4 +172,5 @@ if __name__ == "__main__":
     pt.plot(grad_norms)
     pt.xlabel("Epoch")
     pt.ylabel("||Grad||")
+    pt.savefig("echov2.png")
     pt.show()
