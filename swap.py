@@ -1,5 +1,5 @@
 """
-Swap input (rinp) on output (rout) with two registers (r0, r1)
+Swap input (rinp) on output (rout) with two registers (rtmp, r1)
 """
 import numpy as np
 import torch as tr
@@ -14,8 +14,8 @@ if __name__ == "__main__":
     print("*******************************************************")
     
     num_symbols = 4
-    # layer_sizes = {"rinp": 64, "rout":64, "r0": 64, "r1": 64}
-    layer_sizes = {"rinp": 64, "rout":64, "r0": 64}
+    # layer_sizes = {"rinp": 64, "rout":64, "rtmp": 64, "r1": 64}
+    layer_sizes = {"rinp": 64, "rout":64, "rtmp": 64}
     hidden_size = 16
     plastic = []
 
@@ -23,7 +23,7 @@ if __name__ == "__main__":
     pathways, associations = default_initializer(
         layer_sizes.keys(), symbols)
 
-    codec = Codec(layer_sizes, symbols, rho=.9)
+    codec = Codec(layer_sizes, symbols, rho=.99)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
 
     # Sanity check
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu_init,
-        num_epochs = 200,
+        num_epochs = 100,
         num_episodes = 500,
         episode_duration = 3,
         training_example = training_example,
@@ -75,6 +75,7 @@ if __name__ == "__main__":
         learning_rate = .1,
         verbose = 1)
     
+    pt.figure(figsize=(4,3))
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)
     pt.title("Learning curve")
@@ -83,6 +84,7 @@ if __name__ == "__main__":
     pt.plot(grad_norms)
     pt.xlabel("Epoch")
     pt.ylabel("||Grad||")
+    pt.tight_layout()
     pt.show()
 
 

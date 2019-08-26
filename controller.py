@@ -36,7 +36,8 @@ class Controller(nn.Module):
         self.rnn = nn.RNN(
             sum([layer_sizes[q] for q in input_keys]),
             hidden_size,
-            nonlinearity='relu')
+            # nonlinearity='relu')
+            nonlinearity='tanh')
         self.incoming = { # pathways organized by destination layer
             q: [p for p, (q_,r) in pathways.items() if q_ == q]
             for q in self.layer_sizes}

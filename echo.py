@@ -67,7 +67,7 @@ if __name__ == "__main__":
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu_init,
-        num_epochs = 50,
+        num_epochs = 30,
         num_episodes = 200,
         episode_duration = 5,
         training_example = training_example,
@@ -76,6 +76,7 @@ if __name__ == "__main__":
         learning_rate = .1,
         verbose = 1)
     
+    pt.figure(figsize=(4,3))
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)
     pt.title("Learning curve")
@@ -84,4 +85,5 @@ if __name__ == "__main__":
     pt.plot(grad_norms)
     pt.xlabel("Epoch")
     pt.ylabel("||Grad||")
+    pt.tight_layout()
     pt.show()
