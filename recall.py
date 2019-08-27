@@ -17,7 +17,7 @@ if __name__ == "__main__":
     hidden_size = 128
     plastic = []
 
-    symbols = num_symbols+alpha+[":"]
+    symbols = num_symbols+alpha
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
 
@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     def training_example():
         # Randomly choose echo symbol (excluding 0 separator)
-        inputs = np.array([separator]*6)
+        inputs = np.array([separator]*5)
         #key, val = np.array([separator]*2), np.array([separator]*2)
         key = np.random.choice(num_symbols[1:], size=2, replace=False)
         #key2 = np.random.choice(symbols[3:5], size=1, replace=False)
@@ -52,11 +52,11 @@ if __name__ == "__main__":
         inputs[1]= val[0]
         inputs[2]= key[1]
         inputs[3]= val[1]
-        inputs[4]=":"
+        #inputs[4]=":"
         new = np.random.choice(key, size=1, replace=False)
-        inputs[5] = new[0]
+        inputs[4] = new[0]
         #print("inputs",inputs)
-        targets = ['0','0','0','0','0',lookup[new[0]]]
+        targets = [lookup[new[0]]]
         # print("targets", targets)
         # print("lookup",lookup)
         # print("______________________")
@@ -71,8 +71,8 @@ if __name__ == "__main__":
 
     # reward calculation based on individual steps
     def reward(ghu, targets, outputs):
-        #outputs_ = [out for out in outputs if out != separator]
-        _, d = lvd(outputs, targets)
+        outputs_ = [outputs[-1]]
+        _, d = lvd(outputs_, targets)
         r = np.zeros(len(outputs))
         for i in range(1,d.shape[0]):
             r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
@@ -82,12 +82,12 @@ if __name__ == "__main__":
     avg_rewards, grad_norms = reinforce(
         ghu_init,
         num_epochs = 1000,
-        num_episodes = 4000,
-        episode_duration = 6,
+        num_episodes = 2000,
+        episode_duration = 5,
         training_example = training_example,
         reward = reward,
         task = "recall",
-        learning_rate = .003,
+        learning_rate = .01,
         verbose=1)
     
     # # Optimization settings
