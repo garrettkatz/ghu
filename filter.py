@@ -45,8 +45,8 @@ if __name__ == "__main__":
         min_length = 4
         max_length = 4
         list_length = np.random.randint(min_length, max_length+1)
-        inputs = np.array([separator]*(list_length+1))
-        inputs[:-1] = np.random.choice(symbols[1:list_symbols+1], size=list_length, replace=False)
+        inputs = np.array([separator]*(list_length))
+        inputs[:] = np.random.choice(symbols[1:list_symbols+1], size=list_length, replace=False)
         #print("inputs",inputs)
         targets = [s for s in inputs if int(s)>2]
         return inputs, targets
@@ -59,24 +59,39 @@ if __name__ == "__main__":
     #     return r
 
     # reward calculation based on individual steps
+    # def reward(ghu, targets, outputs):
+    #     outputs_ = [out for out in outputs if out != separator]
+    #     _, d = lvd(outputs_, targets)
+    #     r = np.zeros(len(outputs))
+    #     for i in range(1,d.shape[0]):
+    #         r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
+    #     return r
+
     def reward(ghu, targets, outputs):
-        outputs_ = [out for out in outputs if out != separator]
-        _, d = lvd(outputs_, targets)
+        outputs_ = [out for out in outputs if out!=separator]
+        zeros = [o for o in outputs if o==separator]
+        totzeros = len(zeros)
         r = np.zeros(len(outputs))
-        for i in range(1,d.shape[0]):
-            r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
+        if len(outputs_)==0:
+            r[-1] -= (len(outputs)+1)
+        else:
+            _,d = lvd(outputs_,targets) 
+            for i in range(1,d.shape[0]):
+                r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
+            r[-1] -= 0.1*totzeros
         return r
-            
-    # Optimization settings
+    
+    #Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu_init,
-        num_epochs = 500,
+        num_epochs = 800,
         num_episodes = 300,
         episode_duration = 4,
         training_example = training_example,
         reward = reward,
         task = "filter",
-        learning_rate = .003)
+        learning_rate = .003,
+        verbose=1)
     
     # # Optimization settings
     # num_epochs = 10000
