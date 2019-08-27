@@ -56,7 +56,7 @@ if __name__ == "__main__":
         new = np.random.choice(key, size=1, replace=False)
         inputs[5] = new[0]
         #print("inputs",inputs)
-        targets = [lookup[new[0]]]
+        targets = ['0','0','0','0','0',lookup[new[0]]]
         # print("targets", targets)
         # print("lookup",lookup)
         # print("______________________")
@@ -71,8 +71,8 @@ if __name__ == "__main__":
 
     # reward calculation based on individual steps
     def reward(ghu, targets, outputs):
-        outputs_ = [out for out in outputs if out != separator]
-        _, d = lvd(outputs_, targets)
+        #outputs_ = [out for out in outputs if out != separator]
+        _, d = lvd(outputs, targets)
         r = np.zeros(len(outputs))
         for i in range(1,d.shape[0]):
             r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
@@ -81,13 +81,14 @@ if __name__ == "__main__":
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu_init,
-        num_epochs = 500,
-        num_episodes = 2000,
-        episode_duration = 4,
+        num_epochs = 1000,
+        num_episodes = 4000,
+        episode_duration = 6,
         training_example = training_example,
         reward = reward,
         task = "recall",
-        learning_rate = .01)
+        learning_rate = .003,
+        verbose=1)
     
     # # Optimization settings
     # num_epochs = 10000
