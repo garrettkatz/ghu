@@ -17,11 +17,11 @@ if __name__ == "__main__":
     
     num_addresses = 5
     # register_names = ["rinp","rout","r0"]
-    register_names = ["rinp","rout","rtemp"]
+    register_names = ["rinp","rout","r0", "r1"]
     # layer_sizes = {"rinp": 64, "rout":64, "r0": 64, "r1": 64}
     # layer_sizes = {"rinp": 256, "rout": 256, "m": 256}
-    layer_sizes = {q: 64 for q in register_names+["m"]}
-    hidden_size = 10
+    layer_sizes = {q: 128 for q in register_names+["m"]}
+    hidden_size = 32
     # plastic = ["%s<m"%q for q in register_names]
     plastic = ["rinp<m"]
 
@@ -53,9 +53,9 @@ if __name__ == "__main__":
         ghu_init.v[0][k] = codec.encode(k, separator)
   
     # training example generation
-    list_symbols = 4
-    min_length = 3
-    max_length = 3
+    list_symbols = 5
+    min_length = 4
+    max_length = 4
     def training_example():
         list_length = np.random.randint(min_length, max_length+1)
         inputs = np.array([separator]*(list_length))
@@ -95,24 +95,24 @@ if __name__ == "__main__":
     #     return r
 
     def reward(ghu, targets, outputs):
-        outputs_ = [out for out in outputs[len(targets)-1:] if out!=separator]
-        zeros = [o for o in outputs[len(targets)-1:] if o==separator]
-        totzeros = len(zeros)
+        outputs_ = outputs[len(targets)-1:]
+        #zeros = [o for o in outputs[len(targets)-1:] if o==separator]
+        #totzeros = len(zeros)
         r = np.zeros(len(outputs))
-        if len(outputs_)==0:
-            r[-1] -= (len(outputs[len(targets):]))
-        else:
-            _,d = lvd(outputs_,targets) 
-            for i in range(1,d.shape[0]):
-                r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
-            r[-1] -= 0.1*totzeros
+        # if len(outputs_)==0:
+        #     r[-1] -= 2*(len(outputs[len(targets)-1:])+1)
+        # else:
+        _,d = lvd(outputs_,targets) 
+        for i in range(1,d.shape[0]):
+            r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -2.
+            #r[-1] -= 0.1*totzeros
         return r
     
     # Optimization
     avg_rewards, grad_norms = reinforce(
         ghu_init,
         num_epochs = 500,
-        num_episodes = 1000,
+        num_episodes = 1600,
         episode_duration = 2*max_length-1,
         training_example = training_example,
         reward = reward,
