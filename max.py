@@ -11,7 +11,7 @@ if __name__ == "__main__":
     print("*******************************************************")
     
     # GHU settings
-    num_symbols = 4
+    num_symbols = 7
     layer_sizes = {"rinp": 512, "rout":512, "rtemp":512}
     hidden_size = 128
     plastic = []
@@ -40,9 +40,9 @@ if __name__ == "__main__":
     def training_example():
         # Randomly choose echo symbol (excluding 0 separator)
         #max_time = 6
-        list_symbols = 4
-        min_length = 3
-        max_length = 3
+        list_symbols = 7
+        min_length = 5
+        max_length = 5
         list_length = np.random.randint(min_length, max_length+1)
         inputs = np.array([separator]*(list_length))
         inputs[:] = np.random.choice(symbols[1:list_symbols+1], size=list_length, replace=True)
@@ -60,7 +60,8 @@ if __name__ == "__main__":
 
     # reward calculation based on individual steps
     def reward(ghu, targets, outputs):
-        outputs_ = [out for out in outputs if out != separator]
+        #outputs_ = [out for out in outputs if out != separator]
+        outputs_ = [outputs[-1]]
         _, d = lvd(outputs_, targets)
         r = np.zeros(len(outputs))
         for i in range(1,d.shape[0]):
@@ -70,13 +71,13 @@ if __name__ == "__main__":
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu_init,
-        num_epochs = 1200,
+        num_epochs = 500,
         num_episodes = 2000,
-        episode_duration = 3,
+        episode_duration = 5,
         training_example = training_example,
         reward = reward,
         task = "max",
-        learning_rate = .008,
+        learning_rate = .03,
         verbose = 1)
 
     # #Training
