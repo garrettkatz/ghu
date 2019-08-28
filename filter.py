@@ -11,9 +11,9 @@ if __name__ == "__main__":
     print("*******************************************************")
     
     # GHU settings
-    num_symbols = 4
-    layer_sizes = {"rinp": 128, "rout":128, "rtemp1":128, "rtemp2":128}
-    hidden_size = 32
+    num_symbols = 8
+    layer_sizes = {"rinp": 512, "rout":512, "rtemp1":512}
+    hidden_size = 64
     plastic = []
 
     symbols = [str(a) for a in range(num_symbols+1)]
@@ -41,14 +41,14 @@ if __name__ == "__main__":
     def training_example():
         # Randomly choose echo symbol (excluding 0 separator)
         #max_time = 6
-        list_symbols = 4
-        min_length = 4
-        max_length = 4
+        list_symbols = 8
+        min_length = 8
+        max_length = 8
         list_length = np.random.randint(min_length, max_length+1)
         inputs = np.array([separator]*(list_length))
         inputs[:] = np.random.choice(symbols[1:list_symbols+1], size=list_length, replace=False)
         #print("inputs",inputs)
-        targets = [s for s in inputs if int(s)>2]
+        targets = [s for s in inputs if int(s)>4]
         return inputs, targets
     
     # # reward calculation from LVD
@@ -85,12 +85,12 @@ if __name__ == "__main__":
     avg_rewards, grad_norms = reinforce(
         ghu_init,
         num_epochs = 800,
-        num_episodes = 300,
-        episode_duration = 4,
+        num_episodes = 1000,
+        episode_duration = 8,
         training_example = training_example,
         reward = reward,
         task = "filter",
-        learning_rate = .003,
+        learning_rate = .005,
         verbose=1)
     
     # # Optimization settings
@@ -179,7 +179,7 @@ if __name__ == "__main__":
 
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)
-    pt.title("Learning curve")
+    pt.title("Learning curve for filter")
     pt.ylabel("Avg Reward")
     pt.subplot(2,1,2)
     pt.plot(grad_norms)
