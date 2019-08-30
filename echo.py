@@ -13,38 +13,31 @@ from reinforce import reinforce
 if __name__ == "__main__":
     print("*******************************************************")
     
-    # GHU settings
+    # Configuration
     num_symbols = 3
     layer_sizes = {"rinp": 64, "rout":64}
     hidden_size = 16
-    batch = 200
+    rho = .99
     plastic = []
+    num_episodes = 200
 
+    # Setup GHU
     symbols = [str(a) for a in range(num_symbols)]
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
-
-    codec = Codec(layer_sizes, symbols, rho=.9)
+    codec = Codec(layer_sizes, symbols, rho=rho)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
-
-    # Sanity check
     ghu = GatedHebbianUnit(
-        layer_sizes, pathways, controller, codec, batch=batch, plastic=plastic)
+        layer_sizes, pathways, controller, codec,
+        batch_size = num_episodes, plastic = plastic)
     ghu.associate(associations)
-    for p,s,t in associations:
-        q,r = ghu.pathways[p]
-        for b in range(batch):
-            assert(codec.decode(q,
-                tr.matmul(ghu.W[p][b], codec.encode(r, s).view(-1,1)).squeeze()
-                ) == t)
-    ghu_init = ghu
 
     # Initialize layers
     separator = "0"
     for k in layer_sizes.keys():
-        ghu_init.v[0][k] = tr.repeat_interleave(
+        ghu.v[0][k] = tr.repeat_interleave(
             codec.encode(k, separator).view(1,-1),
-            batch, dim=0)
+            num_episodes, dim=0)
 
     # training example generation
     def training_example():
@@ -53,14 +46,7 @@ if __name__ == "__main__":
         targets = inputs
         return inputs, targets
     
-    # # reward calculation from LVD
-    # def reward(ghu, targets, outputs):
-    #     # Assess reward: negative LVD after separator filtering
-    #     outputs_ = [out for out in outputs if out != separator]
-    #     l, _ = lvd(outputs_, targets)
-    #     return -l
-
-    # reward calculation based on individual steps
+    # reward calculation based on leading LVD at individual steps
     def reward(ghu, targets, outputs):
         idx = [i for i, out in enumerate(outputs) if out != separator]
         outputs_ = [out for out in outputs if out != separator]
@@ -70,11 +56,9 @@ if __name__ == "__main__":
             r[idx[i-1]] = +1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
         return r
             
-    # Optimization settings
-    avg_rewards, grad_norms = reinforce(
-        ghu_init,
-        num_epochs = 30,
-        num_episodes = 200,
+    # Run optimization
+    avg_rewards, grad_norms = reinforce(ghu,
+        num_epochs = 50,
         episode_duration = 5,
         training_example = training_example,
         reward = reward,

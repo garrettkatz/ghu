@@ -11,27 +11,27 @@ from codec import Codec
 from controller import Controller
 
 class GatedHebbianUnit(object):
-    def __init__(self, layer_sizes, pathways, controller, codec, batch=1, plastic=[]):
+    def __init__(self, layer_sizes, pathways, controller, codec, batch_size=1, plastic=[]):
         """
         layer_sizes[k] (dict): size of layer k
         pathways[p]: (destination, source) for pathway p
         controller: dict of layer activity -> s,l gate dicts
-        batch: number of examples to process at a time
+        batch_size: number of examples to process at a time
         """
         super(GatedHebbianUnit, self).__init__()
         self.layer_sizes = layer_sizes
         self.pathways = pathways
         self.controller = controller
         self.codec = codec
-        self.batch = batch
+        self.batch_size = batch_size
         self.plastic = plastic
-        self.W = {p: tr.zeros(batch, layer_sizes[q], layer_sizes[r])
+        self.W = {p: tr.zeros(batch_size, layer_sizes[q], layer_sizes[r])
             for p, (q,r) in pathways.items()}
         self.v = {t:
-            {q: tr.zeros(batch, size)
+            {q: tr.zeros(batch_size, size)
                 for q, size in layer_sizes.items()}
             for t in [-1, 0]}
-        self.h = {-1: tr.zeros(1, batch, controller.hidden_size)}
+        self.h = {-1: tr.zeros(1, batch_size, controller.hidden_size)}
         self.al = {}
         self.pl = {}
         self.ac = {}
@@ -45,7 +45,7 @@ class GatedHebbianUnit(object):
             pathways = self.pathways,
             controller = self.controller,
             codec = self.codec,
-            batch = self.batch,
+            batch_size = self.batch_size,
             plastic = self.plastic)
         ghu.v = {t:
             {q: self.v[t][q].clone().detach() for q in self.layer_sizes.keys()}
@@ -100,7 +100,7 @@ class GatedHebbianUnit(object):
                 dW = self.rehebbian(self.W[p][b], self.v[t-1][r][b], self.v[t][q][b])
                 self.W[p][b] = self.W[p][b] + dW
 
-    def associate(self, associations):
+    def associate(self, associations, check=True):
         T = len(self.W)-1
         for p, s, t in associations:
             q, r = self.pathways[p]
@@ -108,6 +108,13 @@ class GatedHebbianUnit(object):
             y = self.codec.encode(q, t).view(1,-1)
             dW = self.rehebbian(self.W[p], x, y)
             self.W[p] = self.W[p] + dW
+
+        if not check: return
+        for p,s,t in associations:
+            q,r = self.pathways[p]
+            for b in range(self.batch_size):
+                Wv = tr.matmul(self.W[p][b], self.codec.encode(r, s).view(-1,1))
+                assert(self.codec.decode(q, Wv.squeeze()) == t)
     
     def saturation(self):
         return tr.cat([l
@@ -146,11 +153,11 @@ if __name__ == "__main__":
     layer_sizes = {"r0": 3, "r1":3}
     pathways = {0:("r0","r0"), 1:("r1","r0"), 2:("r1","r1")}
     hidden_size = 5
-    batch = 2
+    batch_size = 2
 
     codec = Codec(layer_sizes, "01")
     controller = Controller(layer_sizes, pathways, hidden_size)
-    ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec, batch=batch)
+    ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec, batch_size=batch_size)
 
     ghu.associate([
         (0, "0", "0"),
@@ -176,7 +183,7 @@ if __name__ == "__main__":
         for k in ["r0","r1"]:
             ghu.v[t][k] = tr.repeat_interleave(
                 codec.encode(k, str(0-t)).view(1,-1),
-                batch, dim=0)
+                batch_size, dim=0)
             # ghu.v[-1]["r0"] = codec.encode("r0", str(1))
             # ghu.v[-1]["r1"] = codec.encode("r1", str(1))
             # ghu.v[0]["r0"] = codec.encode("r0", str(0))
