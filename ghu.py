@@ -45,6 +45,7 @@ class GatedHebbianUnit(object):
             pathways = self.pathways,
             controller = self.controller,
             codec = self.codec,
+            batch = self.batch,
             plastic = self.plastic)
         ghu.v = {t:
             {q: self.v[t][q].clone().detach() for q in self.layer_sizes.keys()}
@@ -92,11 +93,12 @@ class GatedHebbianUnit(object):
 
             # Associative learning
             for i,p in enumerate(self.plastic):
-                a = self.pc[t][0,0,i]
-                if a == 0: continue
+                # Select out batch elements where pathway p learns
+                b = (self.pc[t][0,:,i] == 1)
+                if b.sum() == 0: continue
                 q, r = self.pathways[p]
-                dW = self.rehebbian(self.W[p], self.v[t-1][r], self.v[t][q])
-                self.W[p] = self.W[p] + dW
+                dW = self.rehebbian(self.W[p][b], self.v[t-1][r][b], self.v[t][q][b])
+                self.W[p][b] = self.W[p][b] + dW
 
     def associate(self, associations):
         T = len(self.W)-1

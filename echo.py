@@ -17,7 +17,7 @@ if __name__ == "__main__":
     num_symbols = 3
     layer_sizes = {"rinp": 64, "rout":64}
     hidden_size = 16
-    batch = 1
+    batch = 200
     plastic = []
 
     symbols = [str(a) for a in range(num_symbols)]
@@ -33,9 +33,10 @@ if __name__ == "__main__":
     ghu.associate(associations)
     for p,s,t in associations:
         q,r = ghu.pathways[p]
-        assert(codec.decode(q,
-            tr.matmul(ghu.W[p], codec.encode(r, s).view(batch,-1,1)).squeeze()
-            ) == t)
+        for b in range(batch):
+            assert(codec.decode(q,
+                tr.matmul(ghu.W[p][b], codec.encode(r, s).view(-1,1)).squeeze()
+                ) == t)
     ghu_init = ghu
 
     # Initialize layers
