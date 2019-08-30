@@ -17,6 +17,7 @@ if __name__ == "__main__":
     num_symbols = 3
     layer_sizes = {"rinp": 64, "rout":64}
     hidden_size = 16
+    batch = 1
     plastic = []
 
     symbols = [str(a) for a in range(num_symbols)]
@@ -28,17 +29,21 @@ if __name__ == "__main__":
 
     # Sanity check
     ghu = GatedHebbianUnit(
-        layer_sizes, pathways, controller, codec, plastic=plastic)
+        layer_sizes, pathways, controller, codec, batch=batch, plastic=plastic)
     ghu.associate(associations)
     for p,s,t in associations:
         q,r = ghu.pathways[p]
-        assert(codec.decode(q, tr.mv( ghu.W[p], codec.encode(r, s))) == t)
+        assert(codec.decode(q,
+            tr.matmul(ghu.W[p], codec.encode(r, s).view(batch,-1,1)).squeeze()
+            ) == t)
     ghu_init = ghu
 
     # Initialize layers
     separator = "0"
     for k in layer_sizes.keys():
-        ghu_init.v[0][k] = codec.encode(k, separator)
+        ghu_init.v[0][k] = tr.repeat_interleave(
+            codec.encode(k, separator).view(1,-1),
+            batch, dim=0)
 
     # training example generation
     def training_example():

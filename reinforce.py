@@ -39,7 +39,10 @@ def reinforce(ghu_init, num_epochs, num_episodes, episode_duration, training_exa
             for t in range(episode_duration):
 
                 if t < len(inputs):
-                    ghu.v[t]["rinp"] = codec.encode("rinp", inputs[t])
+                    ghu.v[t]["rinp"] = tr.repeat_interleave(
+                        codec.encode("rinp", inputs[t]).view(1,-1),
+                        ghu.batch, dim=0)
+
                 ghu.tick() # Take a step
                 out = codec.decode("rout", ghu.v[t+1]["rout"]) # Read output
                 outputs.append(out)

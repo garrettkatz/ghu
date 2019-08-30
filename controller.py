@@ -26,7 +26,7 @@ class Controller(nn.Module):
     activity, plasticity: dicts = controller(v: dict)
     MLP with one recurrent hidden layer
     """
-    def __init__(self, layer_sizes, pathways, hidden_size, plastic, input_keys=None):
+    def __init__(self, layer_sizes, pathways, hidden_size, plastic=[], input_keys=None):
         if input_keys is None: input_keys = layer_sizes.keys()
         super(Controller, self).__init__()
         self.layer_sizes = layer_sizes
@@ -62,17 +62,18 @@ class Controller(nn.Module):
         pd = self.plasticity_readout(h)
         return ad, pd, h
 
-    def act(self, v, h, choices=None):
+    def act(self, v, h):
         # v[q] = input layer q activity at current time
         # h = hidden layer activity at previous time
         # provide choices = ac, pc to override sampling
         ad, pd, h = self.forward(
-            tr.cat([v[k] for k in self.input_keys]).view(1,1,-1),
-            h.view(1,1,-1))
+            # tr.cat([v[k] for k in self.input_keys]).view(1,1,-1),
+            # h.view(1,1,-1))
+            tr.cat([v[k] for k in self.input_keys], dim=1).unsqueeze(0), h)
         distributions = ad, pd
-        h = h.view(-1)
+        # h = h.view(-1)
         
-        if choices is None: choices = sample_choices(*distributions)
+        choices = sample_choices(*distributions)
         likelihoods = get_likelihoods(*choices, *distributions)
         
         return distributions, choices, likelihoods, h
