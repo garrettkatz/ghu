@@ -20,7 +20,7 @@ if __name__ == "__main__":
     register_names = ["rinp","rout","r0", "r1"]
     # layer_sizes = {"rinp": 64, "rout":64, "r0": 64, "r1": 64}
     # layer_sizes = {"rinp": 256, "rout": 256, "m": 256}
-    layer_sizes = {q: 256 for q in register_names+["m"]}
+    layer_sizes = {q: 128 for q in register_names+["m"]}
     hidden_size = 32
     # plastic = ["%s<m"%q for q in register_names]
     plastic = ["rinp<m"]
