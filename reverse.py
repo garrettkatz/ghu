@@ -20,37 +20,35 @@ if __name__ == "__main__":
     register_names = ["rinp","rout","r0", "r1"]
     # layer_sizes = {"rinp": 64, "rout":64, "r0": 64, "r1": 64}
     # layer_sizes = {"rinp": 256, "rout": 256, "m": 256}
-    layer_sizes = {q: 128 for q in register_names+["m"]}
+    layer_sizes = {q: 256 for q in register_names+["m"]}
     hidden_size = 32
     # plastic = ["%s<m"%q for q in register_names]
     plastic = ["rinp<m"]
+    rho = .999
+    num_episodes = 2000
 
+    # Setup GHU
+    print("Setting up GHU...")
     symbols = [str(a) for a in range(num_addresses)]
     pathways, associations = turing_initializer(
         register_names, num_addresses)
-
     # constrain pathways inductive bias
     remove_pathways = ["rout<m", "m<rout"]
     for p in remove_pathways: pathways.pop(p)
     associations = list(filter(lambda x: x[0] not in remove_pathways, associations))
-    # print(pathways)
-    # print(associations)
-
-    codec = Codec(layer_sizes, symbols, rho=.999)
+    codec = Codec(layer_sizes, symbols, rho=rho)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
-
-    # Sanity check
-    ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec, plastic=plastic)
+    ghu = GatedHebbianUnit(
+        layer_sizes, pathways, controller, codec,
+        batch_size = num_episodes, plastic = plastic)
     ghu.associate(associations)
-    for p, s, t in associations:
-        q, r = ghu.pathways[p]
-        assert(codec.decode(q, tr.mv( ghu.W[p], codec.encode(r, s))) == t)
-    ghu_init = ghu
 
     # Initialize layers
     separator = symbols[0]
     for k in layer_sizes.keys():
-        ghu_init.v[0][k] = codec.encode(k, separator)
+        ghu.v[0][k] = tr.repeat_interleave(
+            codec.encode(k, separator).view(1,-1),
+            num_episodes, dim=0)
   
     # training example generation
     list_symbols = 5
@@ -108,17 +106,15 @@ if __name__ == "__main__":
             #r[-1] -= 0.1*totzeros
         return r
     
-    # Optimization
-    avg_rewards, grad_norms = reinforce(
-        ghu_init,
+    # Run optimization
+    avg_rewards, grad_norms = reinforce(ghu,
         num_epochs = 500,
-        num_episodes = 1600,
         episode_duration = 2*max_length-1,
         training_example = training_example,
         reward = reward,
         task = "reverse",
         learning_rate = .2,
-        verbose=2)
+        verbose = 2)
     
     pt.subplot(2,1,1)
     pt.plot(avg_rewards)

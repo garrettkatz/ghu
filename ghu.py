@@ -25,7 +25,9 @@ class GatedHebbianUnit(object):
         self.codec = codec
         self.batch_size = batch_size
         self.plastic = plastic
-        self.W = {p: tr.zeros(batch_size, layer_sizes[q], layer_sizes[r])
+        self.WL = {p: tr.zeros(batch_size, layer_sizes[q], 1)
+            for p, (q,r) in pathways.items()}
+        self.WR = {p: tr.zeros(batch_size, 1, layer_sizes[r])
             for p, (q,r) in pathways.items()}
         self.v = {t:
             {q: tr.zeros(batch_size, size)
@@ -50,17 +52,19 @@ class GatedHebbianUnit(object):
         ghu.v = {t:
             {q: self.v[t][q].clone().detach() for q in self.layer_sizes.keys()}
             for t in [-1, 0]}
-        ghu.W = {p: self.W[p].clone().detach() for p in self.pathways.keys()}
+        ghu.WL = {p: self.WL[p].clone().detach() for p in self.pathways.keys()}
+        ghu.WR = {p: self.WR[p].clone().detach() for p in self.pathways.keys()}
         return ghu
 
-    def rehebbian(self, W, x, y):
+    def rehebbian(self, WL, WR, x, y):
         r = self.codec.rho
         n = x.shape[-1] * r**2
         g = 0.5*(np.log(1. + r) - np.log(1. - r)) / r # formula for arctanh(r)
-        dW = tr.matmul(
-            g*y.unsqueeze(2) - tr.matmul(W, x.unsqueeze(2)),
-            x.unsqueeze(1)) / n
-        return dW
+        dWL = g*y.unsqueeze(2) - tr.matmul(WL, tr.matmul(WR, x.unsqueeze(2)))
+        dWR = x.unsqueeze(1) / n
+        # WL, WR = tr.cat((WL, dWL), dim=2), tr.cat((WR, dWR), dim=1)
+        # return WL, WR
+        return dWL, dWR
 
     def tick(self, num_steps=1, detach=True):
         # choices passed to controller
@@ -81,45 +85,53 @@ class GatedHebbianUnit(object):
             for q in self.layer_sizes.keys():
             
                 # Select out p,r for each batch element to prepare the batch matmul
-                W_q, v_q = [], []
+                WL_q, WR_q, v_q = [], [], []
                 for b,i in enumerate(self.ac[t][q][0]):
                     p = self.controller.incoming[q][i]
                     _, r = self.pathways[p]
-                    W_q.append(self.W[p][b])
+                    WL_q.append(self.WL[p][b])
+                    WR_q.append(self.WR[p][b])
                     v_q.append(self.v[t][r][b,:])
-                W_q, v_q = tr.stack(W_q), tr.stack(v_q)
+                tr.stack(WL_q)
+                tr.stack(WR_q)
+                WL_q, WR_q, v_q = tr.stack(WL_q), tr.stack(WR_q), tr.stack(v_q)
                 self.v[t+1][q] = tr.tanh(
-                    tr.matmul(W_q, v_q.unsqueeze(2))).squeeze(2)
+                    tr.matmul(WL_q, tr.matmul(WR_q, v_q.unsqueeze(2)))).squeeze(2)
 
             # Associative learning
-            for i,p in enumerate(self.plastic):
-                # Select out batch elements where pathway p learns
-                b = (self.pc[t][0,:,i] == 1)
-                if b.sum() == 0: continue
+            for p in self.pathways.keys():
                 q, r = self.pathways[p]
-                dW = self.rehebbian(self.W[p][b], self.v[t-1][r][b], self.v[t][q][b])
-                self.W[p][b] = self.W[p][b] + dW
+                dWL = tr.zeros(self.batch_size, self.layer_sizes[q], 1)
+                dWR = tr.zeros(self.batch_size, 1, self.layer_sizes[r])
+                # Select out batch elements where pathway p learns
+                if p in self.plastic:
+                    i = self.plastic.index(p)
+                    b = (self.pc[t][0,:,i] == 1)
+                    if b.sum() > 0:
+                        dWL[b], dWR[b] = self.rehebbian(
+                            self.WL[p][b], self.WR[p][b], self.v[t-1][r][b], self.v[t][q][b])
+                self.WL[p] = tr.cat((self.WL[p], dWL), dim=2)
+                self.WR[p] = tr.cat((self.WR[p], dWR), dim=1)
 
     def associate(self, associations, check=True):
-        T = len(self.W)-1
+        T = len(self.WL)-1
         for p, s, t in associations:
             q, r = self.pathways[p]
-            x = self.codec.encode(r, s).view(1,-1)
-            y = self.codec.encode(q, t).view(1,-1)
-            dW = self.rehebbian(self.W[p], x, y)
-            self.W[p] = self.W[p] + dW
+            x = tr.repeat_interleave(
+                self.codec.encode(r, s).view(1,-1),
+                self.batch_size, dim=0)
+            y = tr.repeat_interleave(
+                self.codec.encode(q, t).view(1,-1),
+                self.batch_size, dim=0)
+            dWL, dWR = self.rehebbian(self.WL[p], self.WR[p], x, y)
+            self.WL[p] = tr.cat((self.WL[p], dWL), dim=2)
+            self.WR[p] = tr.cat((self.WR[p], dWR), dim=1)
 
         if not check: return
         for p,s,t in associations:
             q,r = self.pathways[p]
-            for b in range(self.batch_size):
-                Wv = tr.matmul(self.W[p][b], self.codec.encode(r, s).view(-1,1))
-                assert(self.codec.decode(q, Wv.squeeze()) == t)
-    
-    def saturation(self):
-        return tr.cat([l
-            for t in self.al.keys() for l in
-                [xl.view(-1) for xl in list(self.al[t].values()) + [self.pl[t]]]]).detach().numpy()
+            Wv = tr.matmul(self.WL[p][0], tr.matmul(self.WR[p][0], self.codec.encode(r, s).view(-1,1)))
+            assert(self.codec.decode(q, Wv.squeeze()) == t)
 
 
 def default_initializer(register_names, symbols):

@@ -17,7 +17,7 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
     for epoch in range(num_epochs):
 
         # Clone initial GHU with controller/codec and associations
-        if verbose > 1: print("Initializing GHU...")
+        if verbose > 1: print("Cloning GHU...")
         ghu = ghu_init.clone()
 
         # Get random examples
@@ -28,6 +28,7 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
         if verbose > 1: print("Running GHU...")
         outputs = []
         for t in range(episode_duration):
+            if verbose > 1: print(" t=%d..." % t)
 
             if t < len(inputs[0]):
                 ghu.v[t]["rinp"] = tr.stack([
@@ -108,7 +109,7 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
 
         saturation = tr.cat([l.flatten() for l in list(AL.values()) + [PL]])
         if verbose > 0:
-            print(" Avg reward = %.2f +/-%.2f (%.2f, %.2f), |grad| = %f, saturation=%f (%f,%f)" %
+            print(" Avg reward = %.2f +/- %.2f (%.2f, %.2f), |grad| = %f, saturation=%f (%f,%f)" %
                 (avg_rewards[epoch], R.std(), R.min(), R.max(),
                 grad_norms[epoch], saturation.mean(),saturation.min(),saturation.max()))
         
