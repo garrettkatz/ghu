@@ -2,12 +2,11 @@ import numpy as np
 import torch as tr
 from controller import get_likelihoods
 
-def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, task, set_choices=None,
+def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, task,
     learning_rate=0.1, line_search_iterations=0, distribution_cap=1., likelihood_cap=1., verbose=3):
     # ghu_init: initial ghu cloned for each episode
     # training_example: function that produces an example
     # reward: function of ghu, target/actual output
-    # set_choices(inputs, targets) are choice overrides for a training batch
 
     controller = ghu_init.controller
     codec = ghu_init.codec
@@ -26,8 +25,6 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
         # Get random examples
         if verbose > 1: print("Sampling problem instances...")
         inputs, targets = zip(*[training_example() for b in range(ghu.batch_size)])
-        if set_choices is not None: choices = set_choices(inputs, targets)
-        else: choices = [None for t in range(episode_duration)]
 
         # Run GHU
         if verbose > 1: print("Running GHU...")
@@ -39,7 +36,7 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
                 ghu.v[t]["rinp"] = tr.stack([
                     codec.encode("rinp", inputs[b][t])
                     for b in range(ghu.batch_size)])
-            ghu.tick(choices=choices[t]) # Take a step
+            ghu.tick() # Take a step
             outputs.append([
                 codec.decode("rout", ghu.v[t+1]["rout"][b,:])
                 for b in range(ghu.batch_size)])

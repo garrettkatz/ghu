@@ -22,7 +22,7 @@ if __name__ == "__main__":
     rho = .99
     plastic = ["rinp<rtmp"]
     remove_pathways = ["rinp<rout", "rout<rtmp"]
-    num_episodes = 3000
+    num_episodes = 6000
 
     # Setup GHU
     symbols = "abcd0123"

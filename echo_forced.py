@@ -57,9 +57,8 @@ if __name__ == "__main__":
         oo = controller.incoming["rout"].index("rout<rout")
         ac0 = {"rout": oi*tr.ones(1, num_episodes, 1), "rinp": io*tr.ones(1, num_episodes, 1)}
         ac1 = {"rout": oi*tr.ones(1, num_episodes, 1), "rinp": ii*tr.ones(1, num_episodes, 1)}
-        ac2 = {"rout": oo*tr.ones(1, num_episodes, 1), "rinp": ii*tr.ones(1, num_episodes, 1)}
         pc = tr.zeros(1, num_episodes, 0)
-        choices = [(
+        choices = [(ac0, pc)] + [(ac1, pc)] * (episode_duration - 2)
         return choices
     
     # reward calculation based on leading LVD at individual steps
