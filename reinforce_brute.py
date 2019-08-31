@@ -1,11 +1,12 @@
 import numpy as np
 import torch as tr
+import itertools as it
 from controller import get_likelihoods
 
-def reinforce_brute(ghu_init, num_epochs, episode_duration, training_brute, reward, task,
+def reinforce_brute(ghu_init, num_epochs, episode_duration, all_training_examples, reward, task,
     learning_rate=0.1, line_search_iterations=0, distribution_cap=1., likelihood_cap=1., verbose=3):
     # ghu_init: initial ghu cloned for each episode
-    # training_brute: all possible (input, target) examples
+    # all_training_examples: list of all possible (input, target) examples
     # reward: function of ghu, target/actual output
 
     controller = ghu_init.controller
@@ -15,23 +16,42 @@ def reinforce_brute(ghu_init, num_epochs, episode_duration, training_brute, rewa
     grad_norms = np.zeros(num_epochs)
     dist_change = np.zeros(num_epochs)
     
-    # Enumerate all possible actions sequences:
-    # ( 2**len(plastic) * product([len(incoming[q]) for q in layer_sizes] )**episode_duration
-    # single time-step:
+    # Enumerate all possible episodes
     # pc[0,b,p] is likelihood of plastic[p] in episode b
     # ac[q][0,b,0] is index for incoming[q][p] in episode b
-    incoming_keys = list(controller.incoming.keys())
-    action_overrides = it.product(*
-        (it.product(
-            it.product(*([0,1] for p in ghu_init.plastic)),
-            it.product(*(range(len(controller.incoming[q])) for q in incoming_keys)))
-        for t in range(episode_duration)))
-    num_action_seqs = (
-        2**len(plastic) * len(
-            list(it.product(*(range(len(controller.incoming[q])) for q in incoming_keys))))
-        ) ** (episode_duration)
+    # number of possible action sequences:
+    # ( 2**len(plastic) * product([len(incoming[q]) for q in layer_sizes] )**episode_duration
+    num_acts = (
+        2**len(ghu_init.plastic) * np.prod(list(map(len, controller.incoming.values())))
+        ) ** episode_duration
+    num_episodes = num_acts * len(all_training_examples)
+    assert(ghu_init.batch_size == num_episodes)
+    print("Enumerating all %d possible episodes..." % num_episodes)
     
-    assert(ghu.batch_size = len(training_brute) * 1)
+    incoming_keys = list(controller.incoming.keys())
+    pc = [tr.zeros(1, num_episodes, len(ghu_init.plastic)) for t in range(episode_duration)]
+    ac = [{q: tr.zeros(1, num_episodes, 1).long() for q in incoming_keys}
+        for t in range(episode_duration)]
+
+    inputs, targets = [], []
+    b = 0
+    for (inp, targ) in all_training_examples:
+        for act in it.product(*
+            (it.product(
+                it.product(*([0,1] for p in ghu_init.plastic)),
+                it.product(*(range(len(controller.incoming[q])) for q in incoming_keys)))
+            for t in range(episode_duration))):
+
+            for t in range(episode_duration):
+                pc[t][0, b, :] = tr.tensor(act[t][0])
+                for i,q in enumerate(incoming_keys):
+                    ac[t][q][0, b, 0] = act[t][1][i]
+                
+            inputs.append(inp)
+            targets.append(targ)
+            b += 0    
+
+    choices = list(zip(ac, pc))
     
     # Train
     for epoch in range(num_epochs):
@@ -39,10 +59,6 @@ def reinforce_brute(ghu_init, num_epochs, episode_duration, training_brute, rewa
         # Clone initial GHU with controller/codec and associations
         if verbose > 1: print("Cloning GHU...")
         ghu = ghu_init.clone()
-
-        # Get random examples
-        if verbose > 1: print("Sampling problem instances...")
-        inputs, targets = zip(*[training_example() for b in range(ghu.batch_size)])
 
         # Run GHU
         if verbose > 1: print("Running GHU...")
@@ -54,7 +70,7 @@ def reinforce_brute(ghu_init, num_epochs, episode_duration, training_brute, rewa
                 ghu.v[t]["rinp"] = tr.stack([
                     codec.encode("rinp", inputs[b][t])
                     for b in range(ghu.batch_size)])
-            ghu.tick() # Take a step
+            ghu.tick(choices = choices[t]) # Take a step
             outputs.append([
                 codec.decode("rout", ghu.v[t+1]["rout"][b,:])
                 for b in range(ghu.batch_size)])

@@ -8,7 +8,7 @@ from ghu import *
 from codec import Codec
 from controller import Controller
 from lvd import lvd
-from reinforce import reinforce
+from reinforce_brute import reinforce_brute
 
 if __name__ == "__main__":
     print("*******************************************************")
@@ -19,14 +19,25 @@ if __name__ == "__main__":
     hidden_size = 16
     rho = .99
     plastic = []
-    num_episodes = 200
+    episode_duration = 5
+
+    # Set up all possible training examples
+    symbols = [str(a) for a in range(num_symbols)]
+    all_training_examples = [([s], [s]) for s in symbols[1:]]
 
     # Setup GHU
-    symbols = [str(a) for a in range(num_symbols)]
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
     codec = Codec(layer_sizes, symbols, rho=rho)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
+
+    # number of possible action sequences:
+    # ( 2**len(plastic) * product([len(incoming[q]) for q in layer_sizes] )**episode_duration
+    num_acts = (
+        2**len(plastic) * np.prod(list(map(len, controller.incoming.values())))
+        ) ** episode_duration
+    num_episodes = int(num_acts) * len(all_training_examples)
+
     ghu = GatedHebbianUnit(
         layer_sizes, pathways, controller, codec,
         batch_size = num_episodes, plastic = plastic)
@@ -39,28 +50,6 @@ if __name__ == "__main__":
             codec.encode(k, separator).view(1,-1),
             num_episodes, dim=0)
 
-    # training example generation
-    def training_example():
-        # Randomly choose echo symbol (excluding 0 separator)
-        inputs = np.random.choice(symbols[1:], size=1)
-        targets = inputs
-        return inputs, targets
-
-    def set_choices(inputs, targets):
-        # pd[t,b,p] is a bernoulli distribution for plastic[p] at time t in batch b
-        # pc and pl are corresponding choices/likelihoods of the same shape
-        # ad[q][t,b,p] is a softmax distribution for activity in incoming[q][p] at time t in batch b
-        # ac[q][t,b,0] and al[q][t,b,0] are the corresponding choices/likelihoods from the softmax
-        oi = controller.incoming["rout"].index("rout<rinp")
-        ii = controller.incoming["rinp"].index("rinp<rinp")
-        io = controller.incoming["rinp"].index("rinp<rout")
-        oo = controller.incoming["rout"].index("rout<rout")
-        ac0 = {"rout": oi*tr.ones(1, num_episodes, 1), "rinp": io*tr.ones(1, num_episodes, 1)}
-        ac1 = {"rout": oi*tr.ones(1, num_episodes, 1), "rinp": ii*tr.ones(1, num_episodes, 1)}
-        pc = tr.zeros(1, num_episodes, 0)
-        choices = [(ac0, pc)] + [(ac1, pc)] * (episode_duration - 2)
-        return choices
-    
     # reward calculation based on leading LVD at individual steps
     def reward(ghu, targets, outputs):
         idx = [i for i, out in enumerate(outputs) if out != separator]
@@ -71,13 +60,11 @@ if __name__ == "__main__":
             r[idx[i-1]] = +1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
         return r
 
-    # Set up optimal choices
-
     # Run optimization
-    avg_rewards, grad_norms = reinforce(ghu,
+    avg_rewards, grad_norms = reinforce_brute(ghu,
         num_epochs = 50,
-        episode_duration = 5,
-        training_example = training_example,
+        episode_duration = episode_duration,
+        all_training_examples = all_training_examples,
         reward = reward,
         task = "echo",
         learning_rate = .1,
