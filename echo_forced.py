@@ -56,6 +56,8 @@ if __name__ == "__main__":
             r[idx[i-1]] = +1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
         return r
 
+    # Set up optimal choices
+
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
         num_epochs = 50,

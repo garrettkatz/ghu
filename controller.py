@@ -26,7 +26,9 @@ class Controller(nn.Module):
     activity, plasticity: dicts = controller(v: dict)
     MLP with one recurrent hidden layer
     """
-    def __init__(self, layer_sizes, pathways, hidden_size, plastic=[], input_keys=None):
+    def __init__(self, layer_sizes, pathways, hidden_size,
+        plastic=[], input_keys=None, nonlinearity='tanh'):
+
         if input_keys is None: input_keys = layer_sizes.keys()
         super(Controller, self).__init__()
         self.layer_sizes = layer_sizes
@@ -35,9 +37,7 @@ class Controller(nn.Module):
         self.hidden_size = hidden_size
         self.rnn = nn.RNN(
             sum([layer_sizes[q] for q in input_keys]),
-            hidden_size,
-            # nonlinearity='relu')
-            nonlinearity='tanh')
+            hidden_size, nonlinearity=nonlinearity)
         self.incoming = { # pathways organized by destination layer
             q: [p for p, (q_,r) in pathways.items() if q_ == q]
             for q in self.layer_sizes}
