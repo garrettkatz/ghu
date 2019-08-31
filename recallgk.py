@@ -22,7 +22,7 @@ if __name__ == "__main__":
     rho = .99
     plastic = ["rinp<rtmp"]
     remove_pathways = ["rinp<rout", "rout<rtmp"]
-    num_episodes = 2000
+    num_episodes = 3000
 
     # Setup GHU
     symbols = "abcd0123"
@@ -95,4 +95,5 @@ if __name__ == "__main__":
     pt.xlabel("Epoch")
     pt.ylabel("||Grad||")
     pt.tight_layout()
+    pt.savefig("recallgk.png")
     pt.show()

@@ -45,6 +45,22 @@ if __name__ == "__main__":
         inputs = np.random.choice(symbols[1:], size=1)
         targets = inputs
         return inputs, targets
+
+    def set_choices(inputs, targets):
+        # pd[t,b,p] is a bernoulli distribution for plastic[p] at time t in batch b
+        # pc and pl are corresponding choices/likelihoods of the same shape
+        # ad[q][t,b,p] is a softmax distribution for activity in incoming[q][p] at time t in batch b
+        # ac[q][t,b,0] and al[q][t,b,0] are the corresponding choices/likelihoods from the softmax
+        oi = controller.incoming["rout"].index("rout<rinp")
+        ii = controller.incoming["rinp"].index("rinp<rinp")
+        io = controller.incoming["rinp"].index("rinp<rout")
+        oo = controller.incoming["rout"].index("rout<rout")
+        ac0 = {"rout": oi*tr.ones(1, num_episodes, 1), "rinp": io*tr.ones(1, num_episodes, 1)}
+        ac1 = {"rout": oi*tr.ones(1, num_episodes, 1), "rinp": ii*tr.ones(1, num_episodes, 1)}
+        ac2 = {"rout": oo*tr.ones(1, num_episodes, 1), "rinp": ii*tr.ones(1, num_episodes, 1)}
+        pc = tr.zeros(1, num_episodes, 0)
+        choices = [(
+        return choices
     
     # reward calculation based on leading LVD at individual steps
     def reward(ghu, targets, outputs):
