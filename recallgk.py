@@ -74,7 +74,7 @@ if __name__ == "__main__":
             
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 300,
+        num_epochs = 500,
         episode_duration = 8,
         training_example = training_example,
         reward = reward,
