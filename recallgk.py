@@ -31,7 +31,8 @@ if __name__ == "__main__":
     for p in remove_pathways: pathways.pop(p)
     associations = list(filter(lambda x: x[0] not in remove_pathways, associations))
     codec = Codec(layer_sizes, symbols, rho=rho)
-    controller = Controller(layer_sizes, pathways, hidden_size, plastic, nonlinearity='relu')
+    # controller = Controller(layer_sizes, pathways, hidden_size, plastic, nonlinearity='relu')
+    controller = Controller(layer_sizes, pathways, hidden_size, plastic, nonlinearity='tanh')
     ghu = GatedHebbianUnit(
         layer_sizes, pathways, controller, codec,
         batch_size = num_episodes, plastic = plastic)
@@ -82,7 +83,7 @@ if __name__ == "__main__":
         learning_rate = .05,
         line_search_iterations = 5,
         distribution_cap = .1,
-        likelihood_cap = .7,
+        # likelihood_cap = .7,
         verbose = 1)
     
     pt.figure(figsize=(4,3))
