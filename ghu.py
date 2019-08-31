@@ -66,7 +66,7 @@ class GatedHebbianUnit(object):
         # return WL, WR
         return dWL, dWR
 
-    def tick(self, detach=True):
+    def tick(self, detach=True, choices=None):
         # choices passed to controller
         t = len(self.al)
 
@@ -74,7 +74,7 @@ class GatedHebbianUnit(object):
         _, choices, likelihoods, self.h[t] = self.controller.act(
             self.v[t] if not detach else
                 {q: v.clone().detach() for q, v in self.v[t].items()},
-            self.h[t-1])
+            self.h[t-1], choices)
         self.ac[t], self.pc[t] = choices
         self.al[t], self.pl[t] = likelihoods
 

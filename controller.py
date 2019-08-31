@@ -62,18 +62,15 @@ class Controller(nn.Module):
         pd = self.plasticity_readout(h)
         return ad, pd, h
 
-    def act(self, v, h):
+    def act(self, v, h, choices=None):
         # v[q] = input layer q activity at current time
         # h = hidden layer activity at previous time
         # provide choices = ac, pc to override sampling
         ad, pd, h = self.forward(
-            # tr.cat([v[k] for k in self.input_keys]).view(1,1,-1),
-            # h.view(1,1,-1))
             tr.cat([v[k] for k in self.input_keys], dim=1).unsqueeze(0), h)
+
         distributions = ad, pd
-        # h = h.view(-1)
-        
-        choices = sample_choices(*distributions)
+        if choices is None: choices = sample_choices(*distributions)
         likelihoods = get_likelihoods(*choices, *distributions)
         
         return distributions, choices, likelihoods, h

@@ -2,11 +2,14 @@ import numpy as np
 import torch as tr
 from controller import get_likelihoods
 
-def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, task,
+def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, task, choices=None,
     learning_rate=0.1, line_search_iterations=0, distribution_cap=1., likelihood_cap=1., verbose=3):
     # ghu_init: initial ghu cloned for each episode
     # training_example: function that produces an example
     # reward: function of ghu, target/actual output
+    # choices[t] passed to tick
+
+    if choices is None: choices = [None] * episode_duration
 
     controller = ghu_init.controller
     codec = ghu_init.codec
@@ -36,7 +39,7 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
                 ghu.v[t]["rinp"] = tr.stack([
                     codec.encode("rinp", inputs[b][t])
                     for b in range(ghu.batch_size)])
-            ghu.tick() # Take a step
+            ghu.tick(choices=choices[t]) # Take a step
             outputs.append([
                 codec.decode("rout", ghu.v[t+1]["rout"][b,:])
                 for b in range(ghu.batch_size)])
