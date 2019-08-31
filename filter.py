@@ -12,9 +12,10 @@ if __name__ == "__main__":
     
     # GHU settings
     num_symbols = 8
-    layer_sizes = {"rinp": 512, "rout":512, "rtemp1":512}
+    layer_sizes = {"rinp": 512, "rout":512, "rtemp":512}
     hidden_size = 64
     plastic = []
+    num_episodes = 3000
 
     symbols = [str(a) for a in range(num_symbols+1)]
     pathways, associations = default_initializer( # all to all
@@ -27,16 +28,18 @@ if __name__ == "__main__":
 
     # Sanity check
     ghu = GatedHebbianUnit(
-        layer_sizes, pathways, controller, codec, plastic=plastic)
+        layer_sizes, pathways, controller, codec, plastic=plastic, batch_size=num_episodes)
     ghu.associate(associations)
-    for p,s,t in associations:
-        q,r = ghu.pathways[p]
-        assert(codec.decode(q, tr.mv( ghu.W[p], codec.encode(r, s))) == t)
-    ghu_init = ghu
+    
 
     separator = symbols[0]
     for k in layer_sizes.keys():
-        ghu_init.v[0][k] = codec.encode(k, separator)
+        # ghu_init.v[0][k] = codec.encode(k, separator) # !! no good anymore
+        # !! Now we have to repeat the separator for each episode in the batch
+        # !! v[t][k][e,:] is time t, layer k activity for episode e
+        ghu.v[0][k] = tr.repeat_interleave(
+            codec.encode(k, separator).view(1,-1),
+            num_episodes, dim=0)
 
     def training_example():
         # Randomly choose echo symbol (excluding 0 separator)
@@ -83,9 +86,8 @@ if __name__ == "__main__":
     
     #Optimization settings
     avg_rewards, grad_norms = reinforce(
-        ghu_init,
-        num_epochs = 800,
-        num_episodes = 1000,
+        ghu,
+        num_epochs = 300,
         episode_duration = 8,
         training_example = training_example,
         reward = reward,
@@ -95,7 +97,7 @@ if __name__ == "__main__":
     
     # # Optimization settings
     # num_epochs = 10000
-    # num_episodes = 48	
+    # num_episodes = 48 
 
     # avg_rewards = np.empty(num_epochs)
     # grad_norms = np.zeros(num_epochs)
@@ -174,7 +176,7 @@ if __name__ == "__main__":
     #         np.mean(saturation),np.min(saturation),np.max(saturation)))
 
     #     if avg_rewards[epoch]> -0.1:
-    #     	break
+    #       break
 
 
     pt.subplot(2,1,1)

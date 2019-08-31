@@ -15,6 +15,7 @@ if __name__ == "__main__":
     layer_sizes = {"rinp": 512, "rout":512, "rtemp":512}
     hidden_size = 128
     plastic = []
+    num_episodes = 2000
 
     symbols = [str(a) for a in range(num_symbols+1)]
     pathways, associations = default_initializer( # all to all
@@ -27,15 +28,17 @@ if __name__ == "__main__":
 
     # Sanity check
     ghu = GatedHebbianUnit(
-        layer_sizes, pathways, controller, codec, plastic=plastic)
+        layer_sizes, pathways, controller, codec, plastic=plastic, batch_size = num_episodes)
     ghu.associate(associations)
-    for p,s,t in associations:
-        q,r = ghu.pathways[p]
-        assert(codec.decode(q, tr.mv( ghu.W[p], codec.encode(r, s))) == t)
-    ghu_init = ghu
-    separator = symbols[0]
+    
+    separator = "0"
     for k in layer_sizes.keys():
-        ghu_init.v[0][k] = codec.encode(k, separator)
+        # ghu_init.v[0][k] = codec.encode(k, separator) # !! no good anymore
+        # !! Now we have to repeat the separator for each episode in the batch
+        # !! v[t][k][e,:] is time t, layer k activity for episode e
+        ghu.v[0][k] = tr.repeat_interleave(
+            codec.encode(k, separator).view(1,-1),
+            num_episodes, dim=0)
 
     def training_example():
         # Randomly choose echo symbol (excluding 0 separator)
@@ -70,9 +73,8 @@ if __name__ == "__main__":
             
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
-        ghu_init,
-        num_epochs = 500,
-        num_episodes = 2000,
+        ghu,
+        num_epochs = 150,
         episode_duration = 5,
         training_example = training_example,
         reward = reward,
@@ -164,5 +166,5 @@ if __name__ == "__main__":
     pt.plot(grad_norms)
     pt.xlabel("Epoch")
     pt.ylabel("||Grad||")
-    pt.savefig("max.png")
+    pt.savefig("max1.png")
     pt.show()
