@@ -66,52 +66,50 @@ class GatedHebbianUnit(object):
         # return WL, WR
         return dWL, dWR
 
-    def tick(self, num_steps=1, detach=True):
+    def tick(self, detach=True):
         # choices passed to controller
+        t = len(self.al)
 
-        T = len(self.al)
-        for t in range(T, T+num_steps):
+        # Controller
+        _, choices, likelihoods, self.h[t] = self.controller.act(
+            self.v[t] if not detach else
+                {q: v.clone().detach() for q, v in self.v[t].items()},
+            self.h[t-1])
+        self.ac[t], self.pc[t] = choices
+        self.al[t], self.pl[t] = likelihoods
 
-            # Controller
-            _, choices, likelihoods, self.h[t] = self.controller.act(
-                self.v[t] if not detach else
-                    {q: v.clone().detach() for q, v in self.v[t].items()},
-                self.h[t-1])    
-            self.ac[t], self.pc[t] = choices
-            self.al[t], self.pl[t] = likelihoods
-    
-            # Associative recall
-            self.v[t+1] = {}
-            for q in self.layer_sizes.keys():
-            
-                # Select out p,r for each batch element to prepare the batch matmul
-                WL_q, WR_q, v_q = [], [], []
-                for b,i in enumerate(self.ac[t][q][0]):
-                    p = self.controller.incoming[q][i]
-                    _, r = self.pathways[p]
-                    WL_q.append(self.WL[p][b])
-                    WR_q.append(self.WR[p][b])
-                    v_q.append(self.v[t][r][b,:])
-                tr.stack(WL_q)
-                tr.stack(WR_q)
-                WL_q, WR_q, v_q = tr.stack(WL_q), tr.stack(WR_q), tr.stack(v_q)
-                self.v[t+1][q] = tr.tanh(
-                    tr.matmul(WL_q, tr.matmul(WR_q, v_q.unsqueeze(2)))).squeeze(2)
+        # Associative recall
+        self.v[t+1] = {}
+        for q in self.layer_sizes.keys():
 
-            # Associative learning
-            for p in self.pathways.keys():
-                q, r = self.pathways[p]
-                dWL = tr.zeros(self.batch_size, self.layer_sizes[q], 1)
-                dWR = tr.zeros(self.batch_size, 1, self.layer_sizes[r])
-                # Select out batch elements where pathway p learns
-                if p in self.plastic:
-                    i = self.plastic.index(p)
-                    b = (self.pc[t][0,:,i] == 1)
-                    if b.sum() > 0:
-                        dWL[b], dWR[b] = self.rehebbian(
-                            self.WL[p][b], self.WR[p][b], self.v[t-1][r][b], self.v[t][q][b])
-                self.WL[p] = tr.cat((self.WL[p], dWL), dim=2)
-                self.WR[p] = tr.cat((self.WR[p], dWR), dim=1)
+            # Select out p,r for each batch element to prepare the batch matmul
+            WL_q, WR_q, v_q = [], [], []
+            for b,i in enumerate(self.ac[t][q][0]):
+                p = self.controller.incoming[q][i]
+                _, r = self.pathways[p]
+                WL_q.append(self.WL[p][b])
+                WR_q.append(self.WR[p][b])
+                v_q.append(self.v[t][r][b,:])
+            tr.stack(WL_q)
+            tr.stack(WR_q)
+            WL_q, WR_q, v_q = tr.stack(WL_q), tr.stack(WR_q), tr.stack(v_q)
+            self.v[t+1][q] = tr.tanh(
+                tr.matmul(WL_q, tr.matmul(WR_q, v_q.unsqueeze(2)))).squeeze(2)
+
+        # Associative learning
+        for p in self.pathways.keys():
+            q, r = self.pathways[p]
+            dWL = tr.zeros(self.batch_size, self.layer_sizes[q], 1)
+            dWR = tr.zeros(self.batch_size, 1, self.layer_sizes[r])
+            # Select out batch elements where pathway p learns
+            if p in self.plastic:
+                i = self.plastic.index(p)
+                b = (self.pc[t][0,:,i] == 1)
+                if b.sum() > 0:
+                    dWL[b], dWR[b] = self.rehebbian(
+                        self.WL[p][b], self.WR[p][b], self.v[t-1][r][b], self.v[t][q][b])
+            self.WL[p] = tr.cat((self.WL[p], dWL), dim=2)
+            self.WR[p] = tr.cat((self.WR[p], dWR), dim=1)
 
     def associate(self, associations, check=True):
         T = len(self.WL)-1

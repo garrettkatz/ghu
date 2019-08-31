@@ -64,16 +64,23 @@ if __name__ == "__main__":
         reward = reward,
         task = "swap",
         learning_rate = .1,
+        # line_search_iterations = 5,
+        # distribution_cap = .1,
+        # likelihood_cap = .7,
         verbose = 1)
     
     pt.figure(figsize=(4,3))
-    pt.subplot(2,1,1)
+    pt.subplot(3,1,1)
     pt.plot(avg_rewards)
     pt.title("Learning curve")
     pt.ylabel("Avg Reward")
-    pt.subplot(2,1,2)
+    pt.subplot(3,1,2)
     pt.plot(grad_norms)
     pt.xlabel("Epoch")
     pt.ylabel("||Grad||")
+    pt.subplot(3,1,3)
+    pt.plot(dist_change)
+    pt.xlabel("Epoch")
+    pt.ylabel("|~D|")
     pt.tight_layout()
     pt.show()

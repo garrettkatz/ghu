@@ -2,7 +2,8 @@ import numpy as np
 import torch as tr
 from controller import get_likelihoods
 
-def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, task, learning_rate=0.1, verbose=3):
+def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, task,
+    learning_rate=0.1, line_search_iterations=0, distribution_cap=1., likelihood_cap=1., verbose=3):
     # ghu_init: initial ghu cloned for each episode
     # training_example: function that produces an example
     # reward: function of ghu, target/actual output
@@ -12,6 +13,7 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
 
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
+    dist_change = np.zeros(num_epochs)
     
     # Train
     for epoch in range(num_epochs):
@@ -93,8 +95,10 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
         J = 0.
         if len(ghu_init.plastic) > 0:
             J += tr.sum(baselined_rewards_to_go.t() * tr.log(PL).squeeze())
+            J -= tr.sum(tr.masked_select(PL, PL > likelihood_cap))
         for AL_q in AL.values():
             J += tr.sum(baselined_rewards_to_go.t() * tr.log(AL_q).squeeze())
+            J -= tr.sum(tr.masked_select(AL_q, AL_q > likelihood_cap))
         J *= 1./ghu.batch_size
         print(" Autodiff...")
         J.backward()
@@ -105,12 +109,36 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
             if p.data.numel() == 0: continue # happens for plastic = []
             grad_norms[epoch] += (p.grad**2).sum() # Get gradient norm
             p.data += p.grad * learning_rate # Take ascent step
+
+        # Line-search
+        lr = learning_rate
+        AD0, PD0 = AD, PD
+        D0 = list(AD0.values()) + ([PD0] if len(ghu.plastic) > 0 else [])
+        for itr in range(line_search_iterations):
+
+            AD, PD, _ = controller.forward(V, H_0)
+            D = list(AD.values()) + ([PD] if len(ghu.plastic) > 0 else [])
+            AL, PL = get_likelihoods(AC, PC, AD, PD)
+            L = list(AL.values()) + ([PL] if len(ghu.plastic) > 0 else [])
+            # if all([l.mean() < likelihood_cap for l in [PL] + list(AL.values())]): break
+            max_likelihood = max([l.max() for l in L])
+            changes = [(d-d0).abs().max() for (d,d0) in zip(D, D0)]
+            dist_change[epoch] = max(changes)
+            if max(changes) < distribution_cap and max_likelihood < likelihood_cap: break
+
+            lr *= .5
+            for p in controller.parameters():
+                if p.data.numel() == 0: continue # happens for plastic = []
+                p.data -= p.grad * lr # Descent halfway back
+
+        for p in controller.parameters():
+            if p.data.numel() == 0: continue # happens for plastic = []
             p.grad *= 0 # Clear gradients for next epoch
 
-        saturation = tr.cat([l.flatten() for l in list(AL.values()) + [PL]])
+        saturation = tr.cat([l.flatten() for l in [PL] + list(AL.values())])
         if verbose > 0:
-            print(" Avg reward = %.2f +/- %.2f (%.2f, %.2f), |grad| = %f, saturation=%f (%f,%f)" %
-                (avg_rewards[epoch], R.std(), R.min(), R.max(),
+            print(" Avg reward = %.2f +/- %.2f (%.2f, %.2f), |~D| = %f, |grad| = %f, saturation=%f (%f,%f)" %
+                (avg_rewards[epoch], R.std(), R.min(), R.max(), dist_change[epoch],
                 grad_norms[epoch], saturation.mean(),saturation.min(),saturation.max()))
         
         # Delete ghu clone to save memory
