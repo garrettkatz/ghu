@@ -87,7 +87,7 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
         H_0 = tr.zeros(1, ghu.batch_size, controller.hidden_size)
         AC = {q: tr.cat([ghu.ac[t][q] for t in range(episode_duration)])
             for q in ghu.layer_sizes}
-        PC = tr.cat([ghu.pc[t] for t in range(episode_duration)])        
+        PC = tr.cat([ghu.pc[t] for t in range(episode_duration)])
 
         # Calculate policy gradient
         print(" Calculating pre-gradient...")
