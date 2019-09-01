@@ -3,7 +3,8 @@ import torch as tr
 from controller import get_likelihoods
 
 def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, task,
-    learning_rate=0.1, line_search_iterations=0, distribution_cap=1., likelihood_cap=1., verbose=3):
+    learning_rate=0.1, line_search_iterations=0, distribution_cap=1., likelihood_cap=1.,
+    distribution_variance_coefficient=0., verbose=3):
     # ghu_init: initial ghu cloned for each episode
     # training_example: function that produces an example
     # reward: function of ghu, target/actual output
@@ -92,6 +93,7 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
         print(" Calculating pre-gradient...")
         AD, PD, _ = controller.forward(V, H_0)
         AL, PL = get_likelihoods(AC, PC, AD, PD)
+
         J = 0.
         if len(ghu_init.plastic) > 0:
             J += tr.sum(baselined_rewards_to_go.t() * tr.log(PL).squeeze())
@@ -100,6 +102,11 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
             J += tr.sum(baselined_rewards_to_go.t() * tr.log(AL_q).squeeze())
             J -= tr.sum(tr.masked_select(AL_q, AL_q > likelihood_cap))
         J *= 1./ghu.batch_size
+
+        for D in list(AD.values()) + ([PD] if len(ghu.plastic) > 0 else []):
+            variance = ((D - D.mean(dim=1).unsqueeze(1))**2).mean()
+            J -= distribution_variance_coefficient * variance
+
         print(" Autodiff...")
         J.backward()
         
@@ -137,9 +144,11 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
 
         saturation = tr.cat([l.flatten() for l in [PL] + list(AL.values())])
         if verbose > 0:
-            print(" Avg reward = %.2f +/- %.2f (%.2f, %.2f), |~D| = %f, |grad| = %f, saturation=%f (%f,%f)" %
-                (avg_rewards[epoch], R.std(), R.min(), R.max(), dist_change[epoch],
-                grad_norms[epoch], saturation.mean(),saturation.min(),saturation.max()))
+            print(" Avg reward = %.2f +/- %.2f (%.2f, %.2f), |~D| = %f" %
+                (avg_rewards[epoch], R.std(), R.min(), R.max(), dist_change[epoch]))
+            print(" saturation=%f +/- %.2f (%f, %f), |grad| = %f" %
+                (saturation.mean(), saturation.std(), saturation.min(), saturation.max(),
+                grad_norms[epoch]))
         
         # Delete ghu clone to save memory
         del ghu

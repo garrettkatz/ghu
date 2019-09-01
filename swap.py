@@ -16,10 +16,10 @@ if __name__ == "__main__":
     # Configuration
     num_symbols = 4
     layer_sizes = {"rinp": 64, "rout":64, "rtmp": 64}
-    hidden_size = 16
+    hidden_size = 32
     rho = .99
     plastic = []
-    num_episodes = 500
+    num_episodes = 1000
 
     # Setup GHU
     symbols = [str(a) for a in range(num_symbols)]
@@ -63,10 +63,11 @@ if __name__ == "__main__":
         training_example = training_example,
         reward = reward,
         task = "swap",
-        learning_rate = .1,
+        learning_rate = .2,
         # line_search_iterations = 5,
         # distribution_cap = .1,
         # likelihood_cap = .7,
+        distribution_variance_coefficient = 0.01,
         verbose = 1)
     
     pt.figure(figsize=(4,3))
