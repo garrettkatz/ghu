@@ -19,7 +19,7 @@ if __name__ == "__main__":
     hidden_size = 16
     rho = .99
     plastic = []
-    episode_duration = 5
+    episode_duration = 2
 
     # Set up all possible training examples
     symbols = [str(a) for a in range(num_symbols)]

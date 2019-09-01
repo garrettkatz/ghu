@@ -25,14 +25,14 @@ if __name__ == "__main__":
     num_episodes = 10000
 
     # Setup GHU
-    symbols = "abcd0123"
+    symbols = "ab012"
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
     for p in remove_pathways: pathways.pop(p)
     associations = list(filter(lambda x: x[0] not in remove_pathways, associations))
     codec = Codec(layer_sizes, symbols, rho=rho)
-    # controller = Controller(layer_sizes, pathways, hidden_size, plastic, nonlinearity='relu')
-    controller = Controller(layer_sizes, pathways, hidden_size, plastic, nonlinearity='tanh')
+    controller = Controller(layer_sizes, pathways, hidden_size, plastic, nonlinearity='relu')
+    # controller = Controller(layer_sizes, pathways, hidden_size, plastic, nonlinearity='tanh')
     ghu = GatedHebbianUnit(
         layer_sizes, pathways, controller, codec,
         batch_size = num_episodes, plastic = plastic)
@@ -48,8 +48,8 @@ if __name__ == "__main__":
     # training example generation
     def training_example():
         # Randomly choose key-value pairs (excluding 0 separator)
-        keys = np.random.choice(list("abcd"), size=2, replace=False)
-        vals = np.random.choice(list("123"), size=2, replace=False)
+        keys = np.random.choice(list("ab"), size=2, replace=False)
+        vals = np.random.choice(list("12"), size=2, replace=False)
         i = np.random.randint(2) # index of k-v pair for prompt
         inputs = [keys[0], vals[0], keys[1], vals[1], keys[i], "0"]
         targets = [vals[i]]
@@ -83,7 +83,7 @@ if __name__ == "__main__":
         learning_rate = .05,
         line_search_iterations = 5,
         distribution_cap = .1,
-        # likelihood_cap = .7,
+        likelihood_cap = .7,
         verbose = 1)
     
     pt.figure(figsize=(4,3))

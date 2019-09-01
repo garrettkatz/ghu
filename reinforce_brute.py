@@ -126,14 +126,12 @@ def reinforce_brute(ghu_init, num_epochs, episode_duration, all_training_example
         print(" Calculating pre-gradient...")
         AD, PD, _ = controller.forward(V, H_0)
         AL, PL = get_likelihoods(AC, PC, AD, PD)
-        J = 0.
-        if len(ghu_init.plastic) > 0:
-            J += tr.sum(baselined_rewards_to_go.t() * tr.log(PL).squeeze())
-            J -= tr.sum(tr.masked_select(PL, PL > likelihood_cap))
-        for AL_q in AL.values():
-            J += tr.sum(baselined_rewards_to_go.t() * tr.log(AL_q).squeeze())
-            J -= tr.sum(tr.masked_select(AL_q, AL_q > likelihood_cap))
-        J *= 1./ghu.batch_size
+        
+        # True expectation (up to scalar, assuming deterministic E and uniform initial states
+        L = list(AL.values()) + ([PL.prod(dim=2).unsqueeze(2)] if len(ghu.plastic) > 0 else [])
+        P = tr.stack(L)
+        P = P.squeeze().prod(dim=0).prod(dim=0)
+        J = (tr.tensor(R).float()*P).sum()
         print(" Autodiff...")
         J.backward()
         
