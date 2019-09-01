@@ -22,7 +22,7 @@ if __name__ == "__main__":
     rho = .99
     plastic = ["rinp<rtmp"]
     remove_pathways = ["rinp<rout", "rout<rtmp"]
-    num_episodes = 15000
+    num_episodes = 50000
 
     # Setup GHU
     num_symbols = 3
@@ -81,11 +81,11 @@ if __name__ == "__main__":
         training_example = training_example,
         reward = reward,
         task = "recall",
-        learning_rate = .1,
+        learning_rate = .15,
         # line_search_iterations = 5,
         # distribution_cap = .1,
         # likelihood_cap = .7,
-        distribution_variance_coefficient = 0.05,
+        distribution_variance_coefficient = 0.1,
         verbose = 1)
     
     pt.figure(figsize=(4,3))
