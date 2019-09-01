@@ -25,7 +25,8 @@ if __name__ == "__main__":
     num_episodes = 15000
 
     # Setup GHU
-    symbols = "ab012"
+    num_symbols = 3
+    symbols = "abc"[:num_symbols] + "0" + "123"[:num_symbols]
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
     for p in remove_pathways: pathways.pop(p)
@@ -48,8 +49,8 @@ if __name__ == "__main__":
     # training example generation
     def training_example():
         # Randomly choose key-value pairs (excluding 0 separator)
-        keys = np.random.choice(list("ab"), size=2, replace=False)
-        vals = np.random.choice(list("12"), size=2, replace=False)
+        keys = np.random.choice(list("abc"[:num_symbols]), size=2, replace=False)
+        vals = np.random.choice(list("123"[:num_symbols]), size=2, replace=False)
         i = np.random.randint(2) # index of k-v pair for prompt
         inputs = [keys[0], vals[0], keys[1], vals[1], keys[i], "0"]
         targets = [vals[i]]
