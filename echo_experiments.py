@@ -75,11 +75,11 @@ if __name__ == "__main__":
     durations = range(1,6)
     num_reps = 30
     
-    # Run the experiment
-    for dur in durations:
-        for rep in range(num_reps):
-            save_file = "results/echo/run_%d_%d.pkl" % (dur, rep)
-            echo_trial(dur, save_file)
+    # # Run the experiment
+    # for dur in durations:
+    #     for rep in range(num_reps):
+    #         save_file = "results/echo/run_%d_%d.pkl" % (dur, rep)
+    #         echo_trial(dur, save_file)
 
     # Load results
     results = {}
@@ -91,20 +91,62 @@ if __name__ == "__main__":
                 results[dur][rep] = pk.load(f)
     
     # Plot results
-    # config, avg_rewards, grad_norms = results[dur][rep]
-    avg_rewards = np.array([results[dur][rep][1]
-        for dur in results.keys() for rep in results[dur].keys()]).T
-    grad_norms = np.array([results[dur][rep][2]
-        for dur in results.keys() for rep in results[dur].keys()]).T
+    pt.figure(figsize=(4.25,2.5))
+    bg = (.9,.9,.9) # background color
+    for d,dur in enumerate(durations):
+        avg_rewards = np.array([results[dur][rep][1]
+            for rep in results[dur].keys()]).T
 
-    pt.figure(figsize=(4,3))
-    pt.subplot(2,1,1)
-    pt.plot(avg_rewards)
+        pt.plot(avg_rewards, c=bg, zorder=0)
+        fg = tuple([d/10.]*3) # foreground color
+        pt.plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label=("T=%d" % dur))
+
     pt.title("Learning curves")
-    pt.ylabel("Avg Reward")
-    pt.subplot(2,1,2)
-    pt.plot(grad_norms)
+    pt.ylabel("Average Reward")
     pt.xlabel("Epoch")
-    pt.ylabel("||Grad||")
+    pt.ylim([-1,1])
+    pt.legend(loc="lower center")
     pt.tight_layout()
+    pt.savefig('echo_learning_curves.eps')
     pt.show()
+    
+    # Histograms of final rewards
+    pt.figure(figsize=(4.25,2.25))
+    finals = []
+    for d,dur in enumerate(durations):
+        avg_rewards = np.array([results[dur][rep][1]
+            for rep in results[dur].keys()]).T
+        finals.append(avg_rewards[-1,:])
+    pt.boxplot(finals, showfliers=False)
+
+    pt.title("Final Average Rewards")
+    pt.ylabel("Reward")
+    pt.xlabel("Episode duration")
+    pt.tight_layout()
+    pt.savefig('echo_finals.eps')
+    pt.show()
+    
+
+    # # Plot results
+    # pt.figure(figsize=(4,3))
+    # axs = [pt.subplot(2,1,i) for i in [1,2]]
+    # bg = (.9,.9,.9) # background color
+    # for d,dur in enumerate(durations):
+    #     avg_rewards = np.array([results[dur][rep][1]
+    #         for rep in results[dur].keys()]).T
+    #     grad_norms = np.array([results[dur][rep][2]
+    #         for rep in results[dur].keys()]).T
+
+    #     axs[0].plot(avg_rewards, c=bg, zorder=0)
+    #     axs[1].plot(grad_norms, c=bg, zorder=0)
+    #     fg = tuple([d/10.]*3) # foreground color
+    #     axs[0].plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label=("T=%d" % dur))
+    #     axs[1].plot(grad_norms.mean(axis=1), c=fg, zorder=1)
+
+    # axs[0].set_title("Learning curves")
+    # axs[0].set_ylabel("Avg Reward")
+    # # axs[0].legend(loc="lower right")
+    # axs[1].set_xlabel("Epoch")
+    # axs[1].set_ylabel("||Grad||")
+    # pt.tight_layout()
+    # pt.show()
