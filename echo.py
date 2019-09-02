@@ -66,23 +66,28 @@ if __name__ == "__main__":
         task = "echo",
         learning_rate = .1,
         verbose = 1,
-        save_file = "echo.pkl")
+        distribution_variance_coefficient = 0.05,
+        save_file = "tmp.pkl")
     
-    with open("echo.pkl","rb") as f:
-        config, avg_rewards, grad_norms = pk.load(f)
+    with open("tmp.pkl","rb") as f:
+        config, avg_rewards, grad_norms, dist_vars = pk.load(f)
 
     print(config)
     print(avg_rewards[-10:])
     print(grad_norms[-10:])
+    print(dist_vars[-10:])
     
     pt.figure(figsize=(4,3))
-    pt.subplot(2,1,1)
+    pt.subplot(3,1,1)
     pt.plot(avg_rewards)
     pt.title("Learning curve")
     pt.ylabel("Avg Reward")
-    pt.subplot(2,1,2)
+    pt.subplot(3,1,2)
     pt.plot(grad_norms)
-    pt.xlabel("Epoch")
     pt.ylabel("||Grad||")
+    pt.subplot(3,1,3)
+    pt.plot(dist_vars)
+    pt.ylabel("Var(D)")
+    pt.xlabel("Epoch")
     pt.tight_layout()
     pt.show()

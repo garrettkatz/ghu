@@ -16,6 +16,7 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
     dist_change = np.zeros(num_epochs)
+    dist_vars = np.zeros(num_epochs)
     
     # Train
     for epoch in range(num_epochs):
@@ -106,6 +107,7 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
 
         for D in list(AD.values()) + ([PD] if len(ghu.plastic) > 0 else []):
             variance = ((D - D.mean(dim=1).unsqueeze(1))**2).mean()
+            dist_vars[epoch] += variance.item()
             J -= distribution_variance_coefficient * variance
 
         print(" Autodiff...")
@@ -145,8 +147,8 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
 
         saturation = tr.cat([l.flatten() for l in [PL] + list(AL.values())])
         if verbose > 0:
-            print(" Avg reward = %.2f +/- %.2f (%.2f, %.2f), |~D| = %f" %
-                (avg_rewards[epoch], R.std(), R.min(), R.max(), dist_change[epoch]))
+            print(" Avg reward = %.2f +/- %.2f (%.2f, %.2f), |~D| = %f, Var D = %f" %
+                (avg_rewards[epoch], R.std(), R.min(), R.max(), dist_change[epoch], dist_vars[epoch]))
             print(" saturation=%f +/- %.2f (%f, %f), |grad| = %f" %
                 (saturation.mean(), saturation.std(), saturation.min(), saturation.max(),
                 grad_norms[epoch]))
@@ -169,7 +171,7 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
             'likelihood_cap': likelihood_cap,
             'distribution_variance_coefficient': distribution_variance_coefficient}
         with open(save_file, "wb") as f:
-            pk.dump((config, avg_rewards, grad_norms), f)
+            pk.dump((config, avg_rewards, grad_norms, dist_vars), f)
 
     return avg_rewards, grad_norms
 
