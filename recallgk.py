@@ -22,10 +22,10 @@ if __name__ == "__main__":
     rho = .99
     plastic = ["rinp<rtmp"]
     remove_pathways = ["rinp<rout", "rout<rtmp"]
-    num_episodes = 50000
+    num_episodes = 15000
 
     # Setup GHU
-    num_symbols = 3
+    num_symbols = 2
     symbols = "abc"[:num_symbols] + "0" + "123"[:num_symbols]
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
@@ -81,12 +81,13 @@ if __name__ == "__main__":
         training_example = training_example,
         reward = reward,
         task = "recall",
-        learning_rate = .15,
+        learning_rate = .1,
         # line_search_iterations = 5,
         # distribution_cap = .1,
         # likelihood_cap = .7,
-        distribution_variance_coefficient = 0.1,
-        verbose = 1)
+        distribution_variance_coefficient = 0.05,
+        verbose = 1,
+        save_file = "recallgk.pkl")
     
     pt.figure(figsize=(4,3))
     pt.subplot(2,1,1)

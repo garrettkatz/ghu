@@ -1,10 +1,11 @@
 import numpy as np
 import torch as tr
+import pickle as pk
 from controller import get_likelihoods
 
 def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, task,
     learning_rate=0.1, line_search_iterations=0, distribution_cap=1., likelihood_cap=1.,
-    distribution_variance_coefficient=0., verbose=3):
+    distribution_variance_coefficient=0., verbose=3, save_file=None):
     # ghu_init: initial ghu cloned for each episode
     # training_example: function that produces an example
     # reward: function of ghu, target/actual output
@@ -156,6 +157,19 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
         # if epoch > 0 and epoch % 100 == 0:
         #     yn = input("Continue? [y/n]")
         #     if yn == "n": break
+
+        if save_file is None: continue
+        config = {'num_episodes': ghu_init.batch_size,
+            'layer_size': ghu_init.v[-1]["rinp"].shape[-1],
+            'hidden_size': ghu_init.h[-1].shape[-1],
+            'episode_duration': episode_duration,
+            'learning_rate': learning_rate,
+            'line_search_iterations': line_search_iterations,
+            'distribution_cap': distribution_cap,
+            'likelihood_cap': likelihood_cap,
+            'distribution_variance_coefficient': distribution_variance_coefficient}
+        with open(save_file, "wb") as f:
+            pk.dump((config, avg_rewards, grad_norms), f)
 
     return avg_rewards, grad_norms
 

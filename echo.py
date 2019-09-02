@@ -4,6 +4,7 @@ Echo input (rinp) at output (rout)
 import numpy as np
 import torch as tr
 import matplotlib.pyplot as pt
+import pickle as pk
 from ghu import *
 from codec import Codec
 from controller import Controller
@@ -64,7 +65,15 @@ if __name__ == "__main__":
         reward = reward,
         task = "echo",
         learning_rate = .1,
-        verbose = 1)
+        verbose = 1,
+        save_file = "echo.pkl")
+    
+    with open("echo.pkl","rb") as f:
+        config, avg_rewards, grad_norms = pk.load(f)
+
+    print(config)
+    print(avg_rewards[-10:])
+    print(grad_norms[-10:])
     
     pt.figure(figsize=(4,3))
     pt.subplot(2,1,1)
