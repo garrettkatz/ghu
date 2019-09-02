@@ -58,7 +58,7 @@ def echo_trial(episode_duration, save_file):
 
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 50,
+        num_epochs = 100,
         episode_duration = episode_duration,
         training_example = training_example,
         reward = reward,
