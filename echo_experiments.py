@@ -126,27 +126,3 @@ if __name__ == "__main__":
     pt.savefig('echo_finals.eps')
     pt.show()
     
-
-    # # Plot results
-    # pt.figure(figsize=(4,3))
-    # axs = [pt.subplot(2,1,i) for i in [1,2]]
-    # bg = (.9,.9,.9) # background color
-    # for d,dur in enumerate(durations):
-    #     avg_rewards = np.array([results[dur][rep][1]
-    #         for rep in results[dur].keys()]).T
-    #     grad_norms = np.array([results[dur][rep][2]
-    #         for rep in results[dur].keys()]).T
-
-    #     axs[0].plot(avg_rewards, c=bg, zorder=0)
-    #     axs[1].plot(grad_norms, c=bg, zorder=0)
-    #     fg = tuple([d/10.]*3) # foreground color
-    #     axs[0].plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label=("T=%d" % dur))
-    #     axs[1].plot(grad_norms.mean(axis=1), c=fg, zorder=1)
-
-    # axs[0].set_title("Learning curves")
-    # axs[0].set_ylabel("Avg Reward")
-    # # axs[0].legend(loc="lower right")
-    # axs[1].set_xlabel("Epoch")
-    # axs[1].set_ylabel("||Grad||")
-    # pt.tight_layout()
-    # pt.show()

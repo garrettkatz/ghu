@@ -77,11 +77,11 @@ if __name__ == "__main__":
     dvcs = [0., 0.001, 0.01, 0.1, 1.]
     num_reps = 30
     
-    # Run the experiment
-    for dvc in dvcs:
-        for rep in range(num_reps):
-            save_file = "results/swap/run_%f_%d.pkl" % (dvc, rep)
-            swap_trial(dvc, save_file)
+    # # Run the experiment
+    # for dvc in dvcs:
+    #     for rep in range(num_reps):
+    #         save_file = "results/swap/run_%f_%d.pkl" % (dvc, rep)
+    #         swap_trial(dvc, save_file)
 
     # Load results
     results = {}
@@ -93,20 +93,40 @@ if __name__ == "__main__":
                 results[dvc][rep] = pk.load(f)
     
     # Plot results
-    # config, avg_rewards, grad_norms = results[dvc][rep]
-    avg_rewards = np.array([results[dvc][rep][1]
-        for dvc in results.keys() for rep in results[dvc].keys()]).T
-    grad_norms = np.array([results[dvc][rep][2]
-        for dvc in results.keys() for rep in results[dvc].keys()]).T
+    pt.figure(figsize=(4.25,3))
+    bg = (.9,.9,.9) # background color
+    for d,dvc in enumerate(dvcs):
+        avg_rewards = np.array([results[dvc][rep][1]
+            for rep in results[dvc].keys()]).T
 
-    pt.figure(figsize=(4,3))
-    pt.subplot(2,1,1)
-    pt.plot(avg_rewards)
+        pt.plot(avg_rewards, c=bg, zorder=0)
+        fg = tuple([d/10.]*3) # foreground color
+        pt.plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label=("$\lambda$=%.1e" % dvc))
+
     pt.title("Learning curves")
-    pt.ylabel("Avg Reward")
-    pt.subplot(2,1,2)
-    pt.plot(grad_norms)
+    pt.ylabel("Average Reward")
     pt.xlabel("Epoch")
-    pt.ylabel("||Grad||")
+    pt.legend(loc="lower right")
     pt.tight_layout()
+    pt.savefig('swap_learning_curves.eps')
     pt.show()
+    
+    # Histograms of final rewards
+    pt.figure(figsize=(4.25,2.25))
+    finals = []
+    for d,dvc in enumerate(dvcs):
+        avg_rewards = np.array([results[dvc][rep][1]
+            for rep in results[dvc].keys()]).T
+        finals.append(avg_rewards[-1,:])
+    pt.boxplot(finals, showfliers=False)
+
+    pt.title("Final Average Rewards")
+    pt.ylabel("Reward")
+    pt.xlabel("$\lambda$")
+    locs, _ = pt.xticks()
+    pt.xticks(locs, ["%.1e" % dvc for dvc in dvcs])
+    pt.tight_layout()
+    pt.savefig('swap_finals.eps')
+    pt.show()
+
+
