@@ -6,8 +6,9 @@ from codec import Codec
 from controller import Controller
 from lvd import lvd
 from reinforce import *
+import json
 
-def trials(i, finalrewards):
+def trials(i, avgrew, gradnorm):
     print("***************************** Trial ",str(i+1)," *******************************")
     
     # GHU settings
@@ -98,28 +99,19 @@ def trials(i, finalrewards):
         learning_rate = .005,
         verbose=1)
         
-    finalrewards.append(avg_rewards[-1])
-
-    pt.subplot(2,1,1)
-    pt.plot(avg_rewards)
-    pt.title("Learning curve for rfilter")
-    pt.ylabel("Avg Reward")
-    pt.subplot(2,1,2)
-    pt.plot(grad_norms)
-    pt.xlabel("Epoch")
-    pt.ylabel("||Grad||")
-    pt.savefig(filename)
-
+    gradnorm[i+1]=grad_norms.tolist()
+    avgrew[i+1]=avg_rewards.tolist()
     
-
-finalrewards = []  
+    
+allgradnorms = {}
+allavgrewards = {}  
 
 
 for i in range(30):
-    trials(i,finalrewards)
+    trials(i,allavgrewards, allgradnorms)
 
-pt.plot(finalrewards)
-pt.title("final rewards for 30 iterations for filter with repeat")
-pt.ylabel("final avg reward")
-pt.xlabel("Trial")
-pt.savefig("rfiltertrials.png")
+with open("rfilteravgrwd.json","w") as fp:
+    json.dump(allavgrewards, fp)
+
+with open("rfiltergradnorm.json","w") as fp:
+    json.dump(allgradnorms, fp)

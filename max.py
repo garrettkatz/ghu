@@ -6,8 +6,9 @@ from codec import Codec
 from controller import Controller
 from lvd import lvd
 from reinforce import *
+import json
 
-def trials(i, finalrewards):
+def trials(i, avgrew, gradnorm):
     print("***************************** Trial ",str(i+1)," *******************************")
     
     # GHU settings
@@ -76,7 +77,7 @@ def trials(i, finalrewards):
 
     avg_rewards, grad_norms = reinforce(
     ghu,
-    num_epochs = 150,
+    num_epochs = 200,
     episode_duration = 5,
     training_example = training_example,
     reward = reward,
@@ -84,30 +85,21 @@ def trials(i, finalrewards):
     learning_rate = .03,
     verbose = 1)
 
-    finalrewards.append(avg_rewards[-1])
-    pt.subplot(2,1,1)
-    pt.plot(avg_rewards)
-    pt.title("Learning curve for max")
-    pt.ylabel("Avg Reward")
-    pt.subplot(2,1,2)
-    pt.plot(grad_norms)
-    pt.xlabel("Epoch")
-    pt.ylabel("||Grad||")
-    pt.savefig(filename)
-    
-
+    gradnorm[i+1]=grad_norms.tolist()
+    avgrew[i+1]=avg_rewards.tolist()
 
   
-finalrewards = []  
+allgradnorms = {}
+allavgrewards = {}  
 
 
 for i in range(30):
-    trials(i,finalrewards)
+    trials(i,allavgrewards, allgradnorms)
 
-pt.plot(finalreward)
-pt.title("final rewards for 30 iterations for max")
-pt.ylabel("final avg reward")
-pt.xlabel("Trial")
-pt.savefig("maxtrials.png")
+with open("maxavgrwd.json","w") as fp:
+    json.dump(allavgrewards, fp)
+
+with open("maxgradnorm.json","w") as fp:
+    json.dump(allgradnorms, fp)
         
         
