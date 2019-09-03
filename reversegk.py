@@ -65,12 +65,12 @@ def reverse_trial(num_episodes, save_file):
             
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 500,
+        num_epochs = 1000,
         episode_duration = episode_duration,
         training_example = training_example,
         reward = reward,
         task = "reverse",
-        learning_rate = .1,
+        learning_rate = .05,
         # line_search_iterations = 5,
         # distribution_cap = .1,
         # likelihood_cap = .7,
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     print("*******************************************************")
     
     num_reps = 5
-    num_episodes = 15000
+    num_episodes = 2000
     
     # Run the experiment
     for rep in range(num_reps):
