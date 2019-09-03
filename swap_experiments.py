@@ -118,13 +118,16 @@ if __name__ == "__main__":
         avg_rewards = np.array([results[dvc][rep][1]
             for rep in results[dvc].keys()]).T
         finals.append(avg_rewards[-1,:])
-    pt.boxplot(finals, showfliers=False)
+    # pt.boxplot(finals, showfliers=False)
+    means = [f.mean() for f in finals]
+    stds = [f.std() for f in finals]
+    pt.errorbar(range(len(dvcs)), means, fmt='ko', yerr=stds, capsize=10)
 
     pt.title("Final Average Rewards")
     pt.ylabel("Reward")
     pt.xlabel("$\lambda$")
     locs, _ = pt.xticks()
-    pt.xticks(locs, ["%.1e" % dvc for dvc in dvcs])
+    pt.xticks(locs[1:-1], ["%.1e" % dvc for dvc in dvcs])
     pt.tight_layout()
     pt.savefig('swap_finals.eps')
     pt.show()

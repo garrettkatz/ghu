@@ -97,5 +97,5 @@ if __name__ == "__main__":
     pt.xlabel("Epoch")
     pt.ylabel("||Grad||")
     pt.tight_layout()
-    pt.savefig("recallgk.png")
+    pt.savefig("reversegk.png")
     pt.show()
