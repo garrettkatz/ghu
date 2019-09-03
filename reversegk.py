@@ -10,9 +10,8 @@ from controller import Controller
 from lvd import lvd
 from reinforce import reinforce
 
-if __name__ == "__main__":
-    print("*******************************************************")
-    
+def reverse_trial(num_episodes, save_file):
+
     # Configuration
     register_names = ["rinp","rout"]
     layer_sizes = {q: 256 for q in register_names + ["m"]}
@@ -20,7 +19,6 @@ if __name__ == "__main__":
     rho = .99
     plastic = ["rinp<m"]
     remove_pathways = ["rinp<rout", "m<rinp", "m<rout", "rout<m"]
-    num_episodes = 8000
 
     # Setup GHU
     num_addresses = 4
@@ -58,13 +56,6 @@ if __name__ == "__main__":
     # reward calculation based on leading LVD at individual steps
     def reward(ghu, targets, outputs):
         r = np.zeros(len(outputs))
-
-        # # Only use output after the input ends (same len as targets)
-        # idx = range(len(targets), episode_duration)
-        # outputs_ = outputs[len(targets):]
-        # _, d = lvd(outputs_, targets)
-        # for i in range(1,d.shape[0]):
-        #     r[idx[i-1]] = +1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
         
         # All or nothing
         outputs_ = outputs[len(targets):]
@@ -85,17 +76,16 @@ if __name__ == "__main__":
         # likelihood_cap = .7,
         distribution_variance_coefficient = 0.05,
         verbose = 1,
-        save_file = "reversegk.pkl")
+        save_file = save_file)
+
+if __name__ == "__main__":
+    print("*******************************************************")
     
-    pt.figure(figsize=(4,3))
-    pt.subplot(2,1,1)
-    pt.plot(avg_rewards)
-    pt.title("Learning curve")
-    pt.ylabel("Avg Reward")
-    pt.subplot(2,1,2)
-    pt.plot(grad_norms)
-    pt.xlabel("Epoch")
-    pt.ylabel("||Grad||")
-    pt.tight_layout()
-    pt.savefig("reversegk.png")
-    pt.show()
+    num_reps = 5
+    num_episodes = 15000
+    
+    # Run the experiment
+    for rep in range(num_reps):
+        save_file = "results/big_reverse/run_%d_%d.pkl" % (num_episodes, rep)
+        reverse_trial(num_episodes, save_file)
+    
