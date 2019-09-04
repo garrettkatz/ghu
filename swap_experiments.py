@@ -74,16 +74,18 @@ def swap_trial(distribution_variance_coefficient, save_file):
 if __name__ == "__main__":
     print("*******************************************************")
     
-    dvcs = [0., 0.001, 0.01, 0.1, 1.]
+    # dvcs = [0., 0.001, 0.01, 0.1, 1.]
+    dvcs = [.0005, 0.005, 0.05, 0.5]
     num_reps = 30
     
-    # # Run the experiment
-    # for dvc in dvcs:
-    #     for rep in range(num_reps):
-    #         save_file = "results/swap/run_%f_%d.pkl" % (dvc, rep)
-    #         swap_trial(dvc, save_file)
+    # Run the experiment
+    for dvc in dvcs:
+        for rep in range(num_reps):
+            save_file = "results/swap/run_%f_%d.pkl" % (dvc, rep)
+            swap_trial(dvc, save_file)
 
     # Load results
+    dvcs = [0., .0005, 0.001, .005, 0.01, .05, 0.1, .5, 1.]
     results = {}
     for dvc in dvcs:
         results[dvc] = {}
