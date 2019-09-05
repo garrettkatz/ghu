@@ -2,11 +2,11 @@ import json
 import numpy as np 
 import matplotlib.pyplot as pt
 
-def makeplot(filetoload,filesave,label,task):
-    with open(filetoload, "r") as file:
+def makeplot(filetoload,filesave,label,task,height=3):
+    with open("data/" + filetoload, "r") as file:
         result = json.load(file)
 
-    pt.figure(figsize=(4.25,3))
+    pt.figure(figsize=(4.25,height))
     bg = (.9,.9,.9)
     full = []
 
@@ -27,9 +27,9 @@ def makeplot(filetoload,filesave,label,task):
     pt.savefig(filesave)
     pt.show()
 
-makeplot("filteravgrwd.json","filterplot.png","Average Reward over 30 trials","Filter")
-makeplot("rfilteravgrwd.json","rfilterplot.png","Average Reward over 30 trials","Filter with repeat")
-makeplot("echov2avgrwd.json","echov2plot.png","Average Reward over 30 trials","Multi - Echo")
-makeplot("maxavgrwd.json","maxplot.png","Average Reward over 30 trials","Max")
-makeplot("reverseavgrwd.json","reverseplot.png","Average Reward over 20 trials","Reverse without repeat")
-makeplot("recallavgrwd.json","recallplot.png","Average Reward over 20 trials","Recall no plastic")
+makeplot("filteravgrwd.json","filterplot.eps","Average Reward over 30 trials","filter (no repeats)",2)
+makeplot("rfilteravgrwd.json","rfilterplot.eps","Average Reward over 30 trials","filter",2)
+makeplot("echov2avgrwd.json","echov2plot.eps","Average Reward over 30 trials","repeated echo",2)
+makeplot("maxavgrwd.json","maxplot.eps","Average Reward over 30 trials","max",2)
+makeplot("reverseavgrwd.json","reverseplot.eps","Average Reward over 20 trials","reverse (no repeats)",2.5)
+makeplot("recallavgrwd.json","recallplot.eps","Average Reward over 20 trials","static key-value mapping",2)
