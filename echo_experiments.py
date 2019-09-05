@@ -91,7 +91,7 @@ if __name__ == "__main__":
                 results[dur][rep] = pk.load(f)
     
     # Plot results
-    pt.figure(figsize=(4.25,2.5))
+    pt.figure(figsize=(4.25,2.25))
     bg = (.9,.9,.9) # background color
     for d,dur in enumerate(durations):
         avg_rewards = np.array([results[dur][rep][1]
@@ -101,7 +101,7 @@ if __name__ == "__main__":
         fg = tuple([d/10.]*3) # foreground color
         pt.plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label=("T=%d" % dur))
 
-    pt.title("Learning curves")
+    # pt.title("Learning curves")
     pt.ylabel("Average Reward")
     pt.xlabel("Epoch")
     pt.ylim([-1,1])

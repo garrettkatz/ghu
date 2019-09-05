@@ -78,11 +78,11 @@ if __name__ == "__main__":
     dvcs = [.0005, 0.005, 0.05, 0.5]
     num_reps = 30
     
-    # Run the experiment
-    for dvc in dvcs:
-        for rep in range(num_reps):
-            save_file = "results/swap/run_%f_%d.pkl" % (dvc, rep)
-            swap_trial(dvc, save_file)
+    # # Run the experiment
+    # for dvc in dvcs:
+    #     for rep in range(num_reps):
+    #         save_file = "results/swap/run_%f_%d.pkl" % (dvc, rep)
+    #         swap_trial(dvc, save_file)
 
     # Load results
     dvcs = [0., .0005, 0.001, .005, 0.01, .05, 0.1, .5, 1.]
@@ -95,15 +95,16 @@ if __name__ == "__main__":
                 results[dvc][rep] = pk.load(f)
     
     # Plot results
-    pt.figure(figsize=(4.25,3))
+    pt.figure(figsize=(4.25,2))
     bg = (.9,.9,.9) # background color
-    for d,dvc in enumerate(dvcs):
+    dvcs_sub = [0., 0.01, 1.]
+    for d,dvc in enumerate(dvcs_sub):
         avg_rewards = np.array([results[dvc][rep][1]
             for rep in results[dvc].keys()]).T
 
         pt.plot(avg_rewards, c=bg, zorder=0)
-        fg = tuple([d/10.]*3) # foreground color
-        pt.plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label=("$\lambda$=%.1e" % dvc))
+        fg = tuple([float(d)/len(dvcs_sub)]*3) # foreground color
+        pt.plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label=("$\lambda$=%.2f" % dvc))
 
     pt.title("Learning curves")
     pt.ylabel("Average Reward")
@@ -128,8 +129,9 @@ if __name__ == "__main__":
     pt.title("Final Average Rewards")
     pt.ylabel("Reward")
     pt.xlabel("$\lambda$")
-    locs, _ = pt.xticks()
-    pt.xticks(locs[1:-1], ["%.1e" % dvc for dvc in dvcs])
+    # locs, _ = pt.xticks()
+    # pt.xticks(locs[1:-1], ["%.1e" % dvc for dvc in dvcs])
+    pt.xticks(range(len(dvcs)), ["%.4f" % dvc for dvc in dvcs], rotation=45)
     pt.tight_layout()
     pt.savefig('swap_finals.eps')
     pt.show()

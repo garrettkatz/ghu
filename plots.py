@@ -27,6 +27,8 @@ def makeplot(filetoload,filesave,label,task,height=3):
     pt.savefig(filesave)
     pt.show()
 
+
+
 makeplot("filteravgrwd.json","filterplot.eps","Average Reward over 30 trials","filter (no repeats)",2)
 makeplot("rfilteravgrwd.json","rfilterplot.eps","Average Reward over 30 trials","filter",2)
 makeplot("echov2avgrwd.json","echov2plot.eps","Average Reward over 30 trials","repeated echo",2)
