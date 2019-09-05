@@ -9,16 +9,17 @@ from codec import Codec
 from controller import Controller
 from lvd import lvd
 from reinforce import reinforce
+import json 
 
-if __name__ == "__main__":
-    print("*******************************************************")
+def trials(i, avgrew, gradnorm):
+    print("***************************** Trial ",str(i+1),"*******************************")
     
     # GHU settings
     num_symbols =6
-    layer_sizes = {"rinp": 512, "rout":512}
-    hidden_size = 128
+    layer_sizes = {"rinp": 256, "rout":256}
+    hidden_size = 64
     plastic = []
-    num_episodes = 1000 # !! This is now a batch-size parameter to the GHU
+    num_episodes=2000
 
     symbols = [str(a) for a in range(num_symbols)]
     pathways, associations = default_initializer( # all to all
@@ -29,14 +30,8 @@ if __name__ == "__main__":
 
     # Sanity check
     ghu = GatedHebbianUnit(
-        layer_sizes, pathways, controller, codec, plastic=plastic,
-        batch_size = num_episodes) # !! This is where the GHU gets its batch-size
+        layer_sizes, pathways, controller, codec, plastic=plastic, batch_size=num_episodes)
     ghu.associate(associations)
-    # !! The following is now checked by default in ghu.associate
-    # for p,s,t in associations:
-    #     q,r = ghu.pathways[p]
-    #     assert(codec.decode(q, tr.mv( ghu.W[p], codec.encode(r, s))) == t)
-    # ghu_init = ghu # !! unnecessary (encapsulated in reinforce)
 
     # Initialize layers
     separator = "0"
@@ -55,6 +50,13 @@ if __name__ == "__main__":
         targets = [inputs[0] for i in range(int(inputs[0]))]
         return inputs, targets
     
+    # # reward calculation from LVD
+    # def reward(ghu, targets, outputs):
+    #     # Assess reward: negative LVD after separator filtering
+    #     outputs_ = [out for out in outputs if out != separator]
+    #     l, _ = lvd(outputs_, targets)
+    #     return -l
+
     # reward calculation based on individual steps
     def reward(ghu, targets, outputs):
         outputs_ = [out for out in outputs if out != separator]
@@ -63,25 +65,36 @@ if __name__ == "__main__":
         for i in range(1,d.shape[0]):
             r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
         return r
-
+    
+    filename = "echov2"+str(i+1)+".png"
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
-        ghu, # !! no more ghu_init, no more num_episodes (ghu.batch_size provides it)
-        num_epochs = 1200,
+        ghu,
+        num_epochs = 900,
         episode_duration = 6,
         training_example = training_example,
         reward = reward,
         task = "echov2",
         learning_rate = 0.008,
         verbose = 1)
+
+    gradnorm[i+1]=grad_norms.tolist()
+    avgrew[i+1]=avg_rewards.tolist()
+
     
-    pt.subplot(2,1,1)
-    pt.plot(avg_rewards)
-    pt.title("Learning curve of echov2")
-    pt.ylabel("Avg Reward")
-    pt.subplot(2,1,2)
-    pt.plot(grad_norms)
-    pt.xlabel("Epoch")
-    pt.ylabel("||Grad||")
-    pt.savefig("echov2.png")
-    pt.show()
+
+
+allgradnorms = {}
+allavgrewards = {}  
+
+
+for i in range(30):
+    trials(i,allavgrewards, allgradnorms)
+
+with open("echov2avgrwd.json","w") as fp:
+    json.dump(allavgrewards, fp)
+
+with open("echov2gradnorm.json","w") as fp:
+    json.dump(allgradnorms, fp)
+
+
