@@ -1,6 +1,7 @@
 """
 Swap input (rinp) on output (rout) with one extra registers (rtmp)
 """
+import pickle as pk
 import numpy as np
 import torch as tr
 import matplotlib.pyplot as pt
@@ -10,9 +11,8 @@ from controller import Controller
 from lvd import lvd
 from reinforce import reinforce
 
-if __name__ == "__main__":
-    print("*******************************************************")
-    
+def swap_trial(distribution_variance_coefficient, save_file):
+
     # Configuration
     num_symbols = 4
     layer_sizes = {"rinp": 64, "rout":64, "rtmp": 64}
@@ -67,17 +67,71 @@ if __name__ == "__main__":
         # line_search_iterations = 5,
         # distribution_cap = .1,
         # likelihood_cap = .7,
-        distribution_variance_coefficient = 0.01,
-        verbose = 1)
+        distribution_variance_coefficient = distribution_variance_coefficient,
+        verbose = 1,
+        save_file = save_file)
+
+if __name__ == "__main__":
+    print("*******************************************************")
     
-    pt.figure(figsize=(4,3))
-    pt.subplot(2,1,1)
-    pt.plot(avg_rewards)
-    pt.title("Learning curve")
-    pt.ylabel("Avg Reward")
-    pt.subplot(2,1,2)
-    pt.plot(grad_norms)
+    # dvcs = [0., 0.001, 0.01, 0.1, 1.]
+    dvcs = [.0005, 0.005, 0.05, 0.5]
+    num_reps = 30
+    
+    # Run the experiment
+    for dvc in dvcs:
+        for rep in range(num_reps):
+            save_file = "results/swap/run_%f_%d.pkl" % (dvc, rep)
+            swap_trial(dvc, save_file)
+
+    # Load results
+    dvcs = [0., .0005, 0.001, .005, 0.01, .05, 0.1, .5, 1.]
+    results = {}
+    for dvc in dvcs:
+        results[dvc] = {}
+        for rep in range(num_reps):
+            save_file = "results/swap/run_%f_%d.pkl" % (dvc, rep)
+            with open(save_file,"rb") as f:
+                results[dvc][rep] = pk.load(f)
+    
+    # Plot results
+    pt.figure(figsize=(4.25,3))
+    bg = (.9,.9,.9) # background color
+    for d,dvc in enumerate(dvcs):
+        avg_rewards = np.array([results[dvc][rep][1]
+            for rep in results[dvc].keys()]).T
+
+        pt.plot(avg_rewards, c=bg, zorder=0)
+        fg = tuple([d/10.]*3) # foreground color
+        pt.plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label=("$\lambda$=%.1e" % dvc))
+
+    pt.title("Learning curves")
+    pt.ylabel("Average Reward")
     pt.xlabel("Epoch")
-    pt.ylabel("||Grad||")
+    pt.legend(loc="lower right")
     pt.tight_layout()
+    pt.savefig('swap_learning_curves.eps')
     pt.show()
+    
+    # Histograms of final rewards
+    pt.figure(figsize=(4.25,2.25))
+    finals = []
+    for d,dvc in enumerate(dvcs):
+        avg_rewards = np.array([results[dvc][rep][1]
+            for rep in results[dvc].keys()]).T
+        finals.append(avg_rewards[-1,:])
+    # pt.boxplot(finals, showfliers=False)
+    means = [f.mean() for f in finals]
+    stds = [f.std() for f in finals]
+    pt.errorbar(range(len(dvcs)), means, fmt='ko', yerr=stds, capsize=10)
+
+    pt.title("Final Average Rewards")
+    pt.ylabel("Reward")
+    pt.xlabel("$\lambda$")
+    locs, _ = pt.xticks()
+    pt.xticks(locs[1:-1], ["%.1e" % dvc for dvc in dvcs])
+    pt.tight_layout()
+    pt.savefig('swap_finals.eps')
+    pt.show()
+
+

@@ -11,9 +11,8 @@ from controller import Controller
 from lvd import lvd
 from reinforce import reinforce
 
-if __name__ == "__main__":
-    print("*******************************************************")
-    
+def echo_trial(episode_duration, save_file):
+
     # Configuration
     num_symbols = 3
     layer_sizes = {"rinp": 64, "rout":64}
@@ -59,35 +58,71 @@ if __name__ == "__main__":
 
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 50,
-        episode_duration = 5,
+        num_epochs = 100,
+        episode_duration = episode_duration,
         training_example = training_example,
         reward = reward,
         task = "echo",
         learning_rate = .1,
         verbose = 1,
-        distribution_variance_coefficient = 0.05,
-        save_file = "tmp.pkl")
+        save_file = save_file)
     
-    with open("tmp.pkl","rb") as f:
-        config, avg_rewards, grad_norms, dist_vars = pk.load(f)
+    return avg_rewards, grad_norms
 
-    print(config)
-    print(avg_rewards[-10:])
-    print(grad_norms[-10:])
-    print(dist_vars[-10:])
+if __name__ == "__main__":
+    print("*******************************************************")
+
+    durations = range(1,6)
+    num_reps = 30
     
-    pt.figure(figsize=(4,3))
-    pt.subplot(3,1,1)
-    pt.plot(avg_rewards)
-    pt.title("Learning curve")
-    pt.ylabel("Avg Reward")
-    pt.subplot(3,1,2)
-    pt.plot(grad_norms)
-    pt.ylabel("||Grad||")
-    pt.subplot(3,1,3)
-    pt.plot(dist_vars)
-    pt.ylabel("Var(D)")
+    # # Run the experiment
+    # for dur in durations:
+    #     for rep in range(num_reps):
+    #         save_file = "results/echo/run_%d_%d.pkl" % (dur, rep)
+    #         echo_trial(dur, save_file)
+
+    # Load results
+    results = {}
+    for dur in durations:
+        results[dur] = {}
+        for rep in range(num_reps):
+            save_file = "results/echo/run_%d_%d.pkl" % (dur, rep)
+            with open(save_file,"rb") as f:
+                results[dur][rep] = pk.load(f)
+    
+    # Plot results
+    pt.figure(figsize=(4.25,2.5))
+    bg = (.9,.9,.9) # background color
+    for d,dur in enumerate(durations):
+        avg_rewards = np.array([results[dur][rep][1]
+            for rep in results[dur].keys()]).T
+
+        pt.plot(avg_rewards, c=bg, zorder=0)
+        fg = tuple([d/10.]*3) # foreground color
+        pt.plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label=("T=%d" % dur))
+
+    pt.title("Learning curves")
+    pt.ylabel("Average Reward")
     pt.xlabel("Epoch")
+    pt.ylim([-1,1])
+    pt.legend(loc="lower center")
     pt.tight_layout()
+    pt.savefig('echo_learning_curves.eps')
     pt.show()
+    
+    # Histograms of final rewards
+    pt.figure(figsize=(4.25,2.25))
+    finals = []
+    for d,dur in enumerate(durations):
+        avg_rewards = np.array([results[dur][rep][1]
+            for rep in results[dur].keys()]).T
+        finals.append(avg_rewards[-1,:])
+    pt.boxplot(finals, showfliers=False)
+
+    pt.title("Final Average Rewards")
+    pt.ylabel("Reward")
+    pt.xlabel("Episode duration")
+    pt.tight_layout()
+    pt.savefig('echo_finals.eps')
+    pt.show()
+    

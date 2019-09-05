@@ -1,13 +1,12 @@
 import numpy as np
 import torch as tr
-import pickle as pk
+import itertools as it
 from controller import get_likelihoods
 
-def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, task,
-    learning_rate=0.1, line_search_iterations=0, distribution_cap=1., likelihood_cap=1.,
-    distribution_variance_coefficient=0., verbose=3, save_file=None):
+def reinforce_brute(ghu_init, num_epochs, episode_duration, all_training_examples, reward, task,
+    learning_rate=0.1, line_search_iterations=0, distribution_cap=1., likelihood_cap=1., verbose=3):
     # ghu_init: initial ghu cloned for each episode
-    # training_example: function that produces an example
+    # all_training_examples: list of all possible (input, target) examples
     # reward: function of ghu, target/actual output
 
     controller = ghu_init.controller
@@ -16,7 +15,43 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
     avg_rewards = np.empty(num_epochs)
     grad_norms = np.zeros(num_epochs)
     dist_change = np.zeros(num_epochs)
-    dist_vars = np.zeros(num_epochs)
+    
+    # Enumerate all possible episodes
+    # pc[0,b,p] is likelihood of plastic[p] in episode b
+    # ac[q][0,b,0] is index for incoming[q][p] in episode b
+    # number of possible action sequences:
+    # ( 2**len(plastic) * product([len(incoming[q]) for q in layer_sizes] )**episode_duration
+    num_acts = (
+        2**len(ghu_init.plastic) * np.prod(list(map(len, controller.incoming.values())))
+        ) ** episode_duration
+    num_episodes = num_acts * len(all_training_examples)
+    assert(ghu_init.batch_size == num_episodes)
+    print("Enumerating all %d possible episodes..." % num_episodes)
+    
+    incoming_keys = list(controller.incoming.keys())
+    pc = [tr.zeros(1, num_episodes, len(ghu_init.plastic)) for t in range(episode_duration)]
+    ac = [{q: tr.zeros(1, num_episodes, 1).long() for q in incoming_keys}
+        for t in range(episode_duration)]
+
+    inputs, targets = [], []
+    b = 0
+    for (inp, targ) in all_training_examples:
+        for act in it.product(*
+            (it.product(
+                it.product(*([0,1] for p in ghu_init.plastic)),
+                it.product(*(range(len(controller.incoming[q])) for q in incoming_keys)))
+            for t in range(episode_duration))):
+
+            for t in range(episode_duration):
+                pc[t][0, b, :] = tr.tensor(act[t][0])
+                for i,q in enumerate(incoming_keys):
+                    ac[t][q][0, b, 0] = act[t][1][i]
+                
+            inputs.append(inp)
+            targets.append(targ)
+            b += 0    
+
+    choices = list(zip(ac, pc))
     
     # Train
     for epoch in range(num_epochs):
@@ -24,10 +59,6 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
         # Clone initial GHU with controller/codec and associations
         if verbose > 1: print("Cloning GHU...")
         ghu = ghu_init.clone()
-
-        # Get random examples
-        if verbose > 1: print("Sampling problem instances...")
-        inputs, targets = zip(*[training_example() for b in range(ghu.batch_size)])
 
         # Run GHU
         if verbose > 1: print("Running GHU...")
@@ -39,7 +70,7 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
                 ghu.v[t]["rinp"] = tr.stack([
                     codec.encode("rinp", inputs[b][t])
                     for b in range(ghu.batch_size)])
-            ghu.tick() # Take a step
+            ghu.tick(choices = choices[t]) # Take a step
             outputs.append([
                 codec.decode("rout", ghu.v[t+1]["rout"][b,:])
                 for b in range(ghu.batch_size)])
@@ -89,27 +120,18 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
         H_0 = tr.zeros(1, ghu.batch_size, controller.hidden_size)
         AC = {q: tr.cat([ghu.ac[t][q] for t in range(episode_duration)])
             for q in ghu.layer_sizes}
-        PC = tr.cat([ghu.pc[t] for t in range(episode_duration)])
+        PC = tr.cat([ghu.pc[t] for t in range(episode_duration)])        
 
         # Calculate policy gradient
         print(" Calculating pre-gradient...")
         AD, PD, _ = controller.forward(V, H_0)
         AL, PL = get_likelihoods(AC, PC, AD, PD)
-
-        J = 0.
-        if len(ghu_init.plastic) > 0:
-            J += tr.sum(baselined_rewards_to_go.t() * tr.log(PL).squeeze())
-            J -= tr.sum(tr.masked_select(PL, PL > likelihood_cap))
-        for AL_q in AL.values():
-            J += tr.sum(baselined_rewards_to_go.t() * tr.log(AL_q).squeeze())
-            J -= tr.sum(tr.masked_select(AL_q, AL_q > likelihood_cap))
-        J *= 1./ghu.batch_size
-
-        for D in list(AD.values()) + ([PD] if len(ghu.plastic) > 0 else []):
-            variance = ((D - D.mean(dim=1).unsqueeze(1))**2).mean()
-            dist_vars[epoch] += variance.item()
-            J -= distribution_variance_coefficient * variance
-
+        
+        # True expectation (up to scalar, assuming deterministic E and uniform initial states
+        L = list(AL.values()) + ([PL.prod(dim=2).unsqueeze(2)] if len(ghu.plastic) > 0 else [])
+        P = tr.stack(L)
+        P = P.squeeze().prod(dim=0).prod(dim=0)
+        J = (tr.tensor(R).float()*P).sum()
         print(" Autodiff...")
         J.backward()
         
@@ -147,11 +169,9 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
 
         saturation = tr.cat([l.flatten() for l in [PL] + list(AL.values())])
         if verbose > 0:
-            print(" Avg reward = %.2f +/- %.2f (%.2f, %.2f), |~D| = %f, Var D = %f" %
-                (avg_rewards[epoch], R.std(), R.min(), R.max(), dist_change[epoch], dist_vars[epoch]))
-            print(" saturation=%f +/- %.2f (%f, %f), |grad| = %f" %
-                (saturation.mean(), saturation.std(), saturation.min(), saturation.max(),
-                grad_norms[epoch]))
+            print(" Avg reward = %.2f +/- %.2f (%.2f, %.2f), |~D| = %f, |grad| = %f, saturation=%f (%f,%f)" %
+                (avg_rewards[epoch], R.std(), R.min(), R.max(), dist_change[epoch],
+                grad_norms[epoch], saturation.mean(),saturation.min(),saturation.max()))
         
         # Delete ghu clone to save memory
         del ghu
@@ -159,19 +179,6 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
         # if epoch > 0 and epoch % 100 == 0:
         #     yn = input("Continue? [y/n]")
         #     if yn == "n": break
-
-        if save_file is None: continue
-        config = {'num_episodes': ghu_init.batch_size,
-            'layer_size': ghu_init.v[-1]["rinp"].shape[-1],
-            'hidden_size': ghu_init.h[-1].shape[-1],
-            'episode_duration': episode_duration,
-            'learning_rate': learning_rate,
-            'line_search_iterations': line_search_iterations,
-            'distribution_cap': distribution_cap,
-            'likelihood_cap': likelihood_cap,
-            'distribution_variance_coefficient': distribution_variance_coefficient}
-        with open(save_file, "wb") as f:
-            pk.dump((config, avg_rewards, grad_norms, dist_vars), f)
 
     return avg_rewards, grad_norms
 
