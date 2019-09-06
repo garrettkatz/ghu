@@ -98,7 +98,7 @@ if __name__ == "__main__":
             for rep in results[dur].keys()]).T
 
         pt.plot(avg_rewards, c=bg, zorder=0)
-        fg = tuple([d/10.]*3) # foreground color
+        fg = tuple([d/6]*3) # foreground color
         pt.plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label=("T=%d" % dur))
 
     # pt.title("Learning curves")
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     pt.show()
     
     # Histograms of final rewards
-    pt.figure(figsize=(4.25,2.25))
+    pt.figure(figsize=(4.25,2))
     finals = []
     for d,dur in enumerate(durations):
         avg_rewards = np.array([results[dur][rep][1]
@@ -119,7 +119,7 @@ if __name__ == "__main__":
         finals.append(avg_rewards[-1,:])
     pt.boxplot(finals, showfliers=False)
 
-    pt.title("Final Average Rewards")
+    # pt.title("Final Average Rewards")
     pt.ylabel("Reward")
     pt.xlabel("Episode duration")
     pt.tight_layout()

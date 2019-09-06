@@ -19,7 +19,7 @@ def makeplot(filetoload,filesave,label,task,height=3):
     full=np.array(full)
     pt.plot(full.mean(axis=0), c=fg, zorder=1, label=(label))
 
-    pt.title("Learning curve for "+task)
+    # pt.title("Learning curve for "+task)
     pt.ylabel("Average Reward")
     pt.xlabel("Epoch")
     pt.legend(loc="lower right")

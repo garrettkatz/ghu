@@ -87,7 +87,7 @@ if __name__ == "__main__":
         # likelihood_cap = .7,
         distribution_variance_coefficient = 0.05,
         verbose = 1,
-        save_file = "recallgk.pkl")
+        save_file = "recall_plastic.pkl")
     
     pt.figure(figsize=(4,3))
     pt.subplot(2,1,1)
@@ -99,5 +99,5 @@ if __name__ == "__main__":
     pt.xlabel("Epoch")
     pt.ylabel("||Grad||")
     pt.tight_layout()
-    pt.savefig("recallgk.png")
+    pt.savefig("recall_plastic.png")
     pt.show()

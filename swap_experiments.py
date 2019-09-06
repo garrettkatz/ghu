@@ -95,7 +95,7 @@ if __name__ == "__main__":
                 results[dvc][rep] = pk.load(f)
     
     # Plot results
-    pt.figure(figsize=(4.25,2))
+    pt.figure(figsize=(4.25,1.85))
     bg = (.9,.9,.9) # background color
     dvcs_sub = [0., 0.01, 1.]
     for d,dvc in enumerate(dvcs_sub):
@@ -106,7 +106,7 @@ if __name__ == "__main__":
         fg = tuple([float(d)/len(dvcs_sub)]*3) # foreground color
         pt.plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label=("$\lambda$=%.2f" % dvc))
 
-    pt.title("Learning curves")
+    # pt.title("Learning curves")
     pt.ylabel("Average Reward")
     pt.xlabel("Epoch")
     pt.legend(loc="lower right")
@@ -115,7 +115,7 @@ if __name__ == "__main__":
     pt.show()
     
     # Histograms of final rewards
-    pt.figure(figsize=(4.25,2.25))
+    pt.figure(figsize=(4.25,2))
     finals = []
     for d,dvc in enumerate(dvcs):
         avg_rewards = np.array([results[dvc][rep][1]
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     stds = [f.std() for f in finals]
     pt.errorbar(range(len(dvcs)), means, fmt='ko', yerr=stds, capsize=10)
 
-    pt.title("Final Average Rewards")
+    # pt.title("Final Average Rewards")
     pt.ylabel("Reward")
     pt.xlabel("$\lambda$")
     # locs, _ = pt.xticks()
