@@ -29,9 +29,9 @@ def makeplot(filetoload,filesave,label,task,height=3):
 
 
 
-makeplot("filteravgrwd.json","filterplot.eps","Average Reward over 30 trials","filter (no repeats)",2)
-makeplot("rfilteravgrwd.json","rfilterplot.eps","Average Reward over 30 trials","filter",2)
-makeplot("echov2avgrwd.json","echov2plot.eps","Average Reward over 30 trials","repeated echo",2)
+# makeplot("filteravgrwd.json","filterplot.eps","Average Reward over 30 trials","filter (no repeats)",2)
+# makeplot("rfilteravgrwd.json","rfilterplot.eps","Average Reward over 30 trials","filter",2)
+# makeplot("echov2avgrwd.json","echov2plot.eps","Average Reward over 30 trials","repeated echo",2)
 makeplot("maxavgrwd.json","maxplot.eps","Average Reward over 30 trials","max",2)
-makeplot("reverseavgrwd.json","reverseplot.eps","Average Reward over 20 trials","reverse (no repeats)",2.5)
-makeplot("recallavgrwd.json","recallplot.eps","Average Reward over 20 trials","static key-value mapping",2)
+# makeplot("reverseavgrwd.json","reverseplot.eps","Average Reward over 20 trials","reverse (no repeats)",2.5)
+# makeplot("recallavgrwd.json","recallplot.eps","Average Reward over 20 trials","static key-value mapping",2)

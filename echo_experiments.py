@@ -75,11 +75,11 @@ if __name__ == "__main__":
     durations = range(1,6)
     num_reps = 30
     
-    # # Run the experiment
-    # for dur in durations:
-    #     for rep in range(num_reps):
-    #         save_file = "results/echo/run_%d_%d.pkl" % (dur, rep)
-    #         echo_trial(dur, save_file)
+    # Run the experiment
+    for dur in durations:
+        for rep in range(num_reps):
+            save_file = "results/echo/run_%d_%d.pkl" % (dur, rep)
+            echo_trial(dur, save_file)
 
     # Load results
     results = {}
