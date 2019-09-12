@@ -14,21 +14,23 @@ import json
 def trials(i, avgrew, gradnorm):
     print("***************************** Trial ",str(i+1),"*******************************")
    
-    num_symbols = [str(a) for a in range(4)]
-    alpha = ["a","b","c",]
-    layer_sizes = {"rinp": 512, "rout":512, "rtemp":512}
-    hidden_size = 128
+    num_symbols = [str(a) for a in range(5)]
+    alpha = ["a","b","c","d"]
+    #layer_sizes = {"rinp": 512, "rout":512, "rtemp":512}
+    hidden_size = 40
     plastic = []
     #plastic = ["rtemp>rinp"]
 
-    num_episodes = 3000
+    num_episodes = 6000
 
     symbols = num_symbols+alpha
+    length = len(symbols) if len(symbols)%2==0 else (len(symbols)+1)
+    layer_sizes = {"rinp": length, "rout":length, "rtemp":length}
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
 
     
-    codec = Codec(layer_sizes, symbols, rho=.999)
+    codec = Codec(layer_sizes, symbols, rho=.999, requires_grad=False,ortho=True)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
 
     # Sanity check
@@ -47,20 +49,22 @@ def trials(i, avgrew, gradnorm):
 
     def training_example():
         # Randomly choose echo symbol (excluding 0 separator)
-        inputs = np.array([separator]*5)
+        inputs = np.array([separator]*7)
         #key, val = np.array([separator]*2), np.array([separator]*2)
-        key = np.random.choice(num_symbols[1:], size=2, replace=False)
+        key = np.random.choice(num_symbols[1:], size=3, replace=False)
         #key2 = np.random.choice(symbols[3:5], size=1, replace=False)
-        val = np.random.choice(alpha[:], size=2, replace=False)
+        val = np.random.choice(alpha[:], size=3, replace=False)
         #val2 = np.random.choice(alpha[2:4], size=1, replace=False)
-        lookup = { key[0]:val[0], key[1]:val[1] }
+        lookup = { key[0]:val[0], key[1]:val[1], key[2]:val[2] }
         inputs[0]= key[0]
         inputs[1]= val[0]
         inputs[2]= key[1]
         inputs[3]= val[1]
+        inputs[4] = key[2]
+        inputs[5] = val[2]
         #inputs[4]=":"
         new = np.random.choice(key, size=1, replace=False)
-        inputs[4] = new[0]
+        inputs[6] = new[0]
         #print("inputs",inputs)
         targets = [lookup[new[0]]]
         # print("targets", targets)
@@ -81,8 +85,8 @@ def trials(i, avgrew, gradnorm):
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu,
-        num_epochs = 1000,
-        episode_duration = 5,
+        num_epochs = 3000,
+        episode_duration = 7,
         training_example = training_example,
         reward = reward,
         task = "recall",
@@ -109,13 +113,13 @@ allgradnorms = {}
 allavgrewards = {}  
 
 
-for i in range(20):
+for i in range(1):
     trials(i,allavgrewards, allgradnorms)
 
-with open("recallavgrwd.json","w") as fp:
-    json.dump(allavgrewards, fp)
+# with open("recallavgrwd.json","w") as fp:
+#     json.dump(allavgrewards, fp)
 
-with open("recallgradnorm.json","w") as fp:
-    json.dump(allgradnorms, fp)
+# with open("recallgradnorm.json","w") as fp:
+#     json.dump(allgradnorms, fp)
 
 

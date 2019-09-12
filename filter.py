@@ -13,18 +13,21 @@ def trials(i, avgrew, gradnorm):
     
     # GHU settings
     num_symbols = 8
-    layer_sizes = {"rinp": 512, "rout":512, "rtemp":512}
-    hidden_size = 64
+    
+    hidden_size = 24
     plastic = []
     num_episodes = 3000
 
     symbols = [str(a) for a in range(num_symbols+1)]
+    length = len(symbols) if len(symbols)%2==0 else (len(symbols)+1)
+    layer_sizes = {"rinp": length, "rout":length, "rtemp":length}
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
+    
 
     print(symbols)
 
-    codec = Codec(layer_sizes, symbols, rho=.9999)
+    codec = Codec(layer_sizes, symbols, rho=.9999, requires_grad=False,ortho=True)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
 
     # Sanity check
@@ -50,7 +53,7 @@ def trials(i, avgrew, gradnorm):
         max_length = 8
         list_length = np.random.randint(min_length, max_length+1)
         inputs = np.array([separator]*(list_length))
-        inputs[:] = np.random.choice(symbols[1:list_symbols+1], size=list_length, replace=False)
+        inputs[:] = np.random.choice(symbols[1:], size=list_length, replace=False)
         #print("inputs",inputs)
         targets = [s for s in inputs if int(s)>4]
         return inputs, targets
@@ -91,7 +94,7 @@ def trials(i, avgrew, gradnorm):
     #Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu,
-        num_epochs = 300,
+        num_epochs = 900,
         episode_duration = 8,
         training_example = training_example,
         reward = reward,
@@ -107,11 +110,11 @@ allgradnorms = {}
 allavgrewards = {}  
 
 
-for i in range(30):
+for i in range(1):
     trials(i,allavgrewards, allgradnorms)
 
-with open("filteravgrwd.json","w") as fp:
-    json.dump(allavgrewards, fp)
+# with open("filteravgrwd.json","w") as fp:
+#     json.dump(allavgrewards, fp)
 
-with open("filtergradnorm.json","w") as fp:
-    json.dump(allgradnorms, fp)
+# with open("filtergradnorm.json","w") as fp:
+#     json.dump(allgradnorms, fp)

@@ -1,19 +1,38 @@
 import numpy as np
 import torch as tr
+from orthogonal_patterns import *
 
 class Codec(object):
-    def __init__(self, layer_sizes, symbols, rho = .999, requires_grad=False):
+    def __init__(self, layer_sizes, symbols, rho = .999, requires_grad=False,ortho=False):
         self.rho = rho
-        self.encoder = { k: {
-            s: tr.tensor(
-                rho * np.sign(np.random.randn(size)).astype(np.float32),
-                requires_grad=requires_grad)
-            for s in symbols}
-            for k, size in layer_sizes.items()}
+        if ortho:
+            # mat = random_orthogonal_patterns(len(symbols),len(symbols))
+            # self.encoder = { k: {
+            #     symbols[s]: tr.tensor(
+            #         rho * mat[:,s].astype(np.float32),
+            #         requires_grad=requires_grad)
+            #     for s in range(len(symbols))}
+            #     for k, size in layer_sizes.items()}
+            self.encoder = {}
+            length = len(symbols) if len(symbols)%2==0 else (len(symbols)+1)
+            for k,size in layer_sizes.items():
+                mat = random_orthogonal_patterns(length,length)
+                temp = { k: {symbols[s]: tr.tensor(rho * mat[:,s].astype(np.float32),requires_grad=requires_grad)for s in range(len(symbols))}}
+                self.encoder.update(temp)
+        else:
+            self.encoder = { k: {
+                s: tr.tensor(
+                    rho * np.sign(np.random.randn(size)).astype(np.float32),
+                    requires_grad=requires_grad)
+                for s in symbols}
+                for k, size in layer_sizes.items()}
         self.decoder = {k: {
             (p.data.numpy() > 0).tobytes(): s
             for s, p in self.encoder[k].items()}
             for k in layer_sizes.keys()}
+
+    def show(self):
+        print(self.encoder)
     def encode(self, layer, symbol):
         return self.encoder[layer][symbol]
     def decode(self, layer, pattern):
@@ -25,5 +44,38 @@ class Codec(object):
         for lk in self.encoder.values():
             for p in lk.values():
                 yield p
+
+
+if __name__=="__main__":
+    # a = tr.tensor(0.999 * np.sign(np.random.randn(8)).astype(np.float32),requires_grad=False)
+    # print(a)
+    # b = tr.tensor(0.999 * random_orthogonal_patterns(5,4).astype(np.float32),requires_grad=False)
+    # print(b)
+    num_symbols = 8
+    layer_sizes = {"rinp": 9, "rout":9, "rtemp":9}
+    
+    symbols = [str(a) for a in range(num_symbols+1)]
+    codec = Codec(layer_sizes, symbols, rho=.9999)
+    codec.show()
+
+
+    # mat = random_orthogonal_patterns(len(symbols),len(symbols))
+    #         self.encoder = { k: {
+    #             symbols[s]: tr.tensor(
+    #                 rho * mat[:,s].astype(np.float32),
+    #                 requires_grad=requires_grad)
+    #             for s in range(len(symbols))}
+    #             for k, size in layer_sizes.items()}
+    
+    # self.encoder = {}
+    # for k,size in layer_sizes.items():
+    #     mat = random_orthogonal_patterns(len(symbols),len(symbols))
+    #     temp = { k: {
+    #             symbols[s]: tr.tensor(
+    #                 rho * mat[:,s].astype(np.float32),
+    #                 requires_grad=requires_grad)
+    #             for s in range(len(symbols))}}
+    #     self.encoder.update(temp)
+
 
 

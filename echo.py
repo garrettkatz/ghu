@@ -16,7 +16,7 @@ if __name__ == "__main__":
     
     # Configuration
     num_symbols = 3
-    layer_sizes = {"rinp": 64, "rout":64}
+    #layer_sizes = {"rinp": 3, "rout":3}
     hidden_size = 16
     rho = .99
     plastic = []
@@ -24,9 +24,12 @@ if __name__ == "__main__":
 
     # Setup GHU
     symbols = [str(a) for a in range(num_symbols)]
+    length = len(symbols) if len(symbols)%2==0 else (len(symbols)+1)
+    layer_sizes = {"rinp": length, "rout":length}
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
-    codec = Codec(layer_sizes, symbols, rho=rho)
+    codec = Codec(layer_sizes, symbols, rho=rho, requires_grad=False,ortho=True)
+    #codec.show()
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
     ghu = GatedHebbianUnit(
         layer_sizes, pathways, controller, codec,
@@ -59,7 +62,7 @@ if __name__ == "__main__":
 
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 50,
+        num_epochs = 150,
         episode_duration = 5,
         training_example = training_example,
         reward = reward,
