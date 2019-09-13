@@ -2,21 +2,19 @@ import numpy as np
 import torch as tr
 from orthogonal_patterns import *
 
+def getsize(size):
+    n = nearest_valid_hadamard_size(size)
+    return n if n%2==0 else (n+1)
+
 class Codec(object):
     def __init__(self, layer_sizes, symbols, rho = .999, requires_grad=False,ortho=False):
         self.rho = rho
         if ortho:
-            # mat = random_orthogonal_patterns(len(symbols),len(symbols))
-            # self.encoder = { k: {
-            #     symbols[s]: tr.tensor(
-            #         rho * mat[:,s].astype(np.float32),
-            #         requires_grad=requires_grad)
-            #     for s in range(len(symbols))}
-            #     for k, size in layer_sizes.items()}
+            
             self.encoder = {}
-            length = len(symbols) if len(symbols)%2==0 else (len(symbols)+1)
+            n = getsize(len(symbols))
             for k,size in layer_sizes.items():
-                mat = random_orthogonal_patterns(length,length)
+                mat = random_orthogonal_patterns(n,len(symbols))
                 temp = { k: {symbols[s]: tr.tensor(rho * mat[:,s].astype(np.float32),requires_grad=requires_grad)for s in range(len(symbols))}}
                 self.encoder.update(temp)
         else:
@@ -51,12 +49,14 @@ if __name__=="__main__":
     # print(a)
     # b = tr.tensor(0.999 * random_orthogonal_patterns(5,4).astype(np.float32),requires_grad=False)
     # print(b)
-    num_symbols = 8
-    layer_sizes = {"rinp": 9, "rout":9, "rtemp":9}
+    # num_symbols = 8
+    # layer_sizes = {"rinp": 9, "rout":9, "rtemp":9}
     
-    symbols = [str(a) for a in range(num_symbols+1)]
-    codec = Codec(layer_sizes, symbols, rho=.9999)
-    codec.show()
+    # symbols = [str(a) for a in range(num_symbols+1)]
+    # codec = Codec(layer_sizes, symbols, rho=.9999)
+    # codec.show()
+    a = nearest_valid_hadamard_size(9)
+    print("SSSS",a)
 
 
     # mat = random_orthogonal_patterns(len(symbols),len(symbols))

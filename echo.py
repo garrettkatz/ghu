@@ -6,10 +6,11 @@ import torch as tr
 import matplotlib.pyplot as pt
 import pickle as pk
 from ghu import *
-from codec import Codec
+from codec import *
 from controller import Controller
 from lvd import lvd
 from reinforce import reinforce
+
 
 if __name__ == "__main__":
     print("*******************************************************")
@@ -24,7 +25,7 @@ if __name__ == "__main__":
 
     # Setup GHU
     symbols = [str(a) for a in range(num_symbols)]
-    length = len(symbols) if len(symbols)%2==0 else (len(symbols)+1)
+    length = getsize(len(symbols))
     layer_sizes = {"rinp": length, "rout":length}
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
@@ -62,7 +63,7 @@ if __name__ == "__main__":
 
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 150,
+        num_epochs = 100,
         episode_duration = 5,
         training_example = training_example,
         reward = reward,

@@ -5,7 +5,7 @@ import numpy as np
 import torch as tr
 import matplotlib.pyplot as pt
 from ghu import *
-from codec import Codec
+from codec import *
 from controller import Controller
 from lvd import lvd
 from reinforce import reinforce
@@ -16,16 +16,18 @@ def trials(i, avgrew, gradnorm):
     
     # GHU settings
     num_symbols =6
-    layer_sizes = {"rinp": 256, "rout":256}
-    hidden_size = 64
+    
+    hidden_size = 24
     plastic = []
     num_episodes=2000
 
     symbols = [str(a) for a in range(num_symbols)]
+    length = getsize(len(symbols))
+    layer_sizes = {"rinp": length, "rout":length}
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
 
-    codec = Codec(layer_sizes, symbols, rho=.9)
+    codec = Codec(layer_sizes, symbols, rho=.9, requires_grad = False, ortho = True)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
 
     # Sanity check
@@ -70,7 +72,7 @@ def trials(i, avgrew, gradnorm):
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu,
-        num_epochs = 900,
+        num_epochs = 1200,
         episode_duration = 6,
         training_example = training_example,
         reward = reward,
@@ -88,13 +90,13 @@ allgradnorms = {}
 allavgrewards = {}  
 
 
-for i in range(30):
+for i in range(1):
     trials(i,allavgrewards, allgradnorms)
 
-with open("echov2avgrwd.json","w") as fp:
-    json.dump(allavgrewards, fp)
+# with open("echov2avgrwd.json","w") as fp:
+#     json.dump(allavgrewards, fp)
 
-with open("echov2gradnorm.json","w") as fp:
-    json.dump(allgradnorms, fp)
+# with open("echov2gradnorm.json","w") as fp:
+#     json.dump(allgradnorms, fp)
 
 

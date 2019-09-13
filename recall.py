@@ -5,7 +5,7 @@ import numpy as np
 import torch as tr
 import matplotlib.pyplot as pt
 from ghu import *
-from codec import Codec
+from codec import *
 from controller import Controller
 from lvd import lvd
 from reinforce import reinforce
@@ -24,7 +24,7 @@ def trials(i, avgrew, gradnorm):
     num_episodes = 6000
 
     symbols = num_symbols+alpha
-    length = len(symbols) if len(symbols)%2==0 else (len(symbols)+1)
+    length = getsize(len(symbols))
     layer_sizes = {"rinp": length, "rout":length, "rtemp":length}
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
