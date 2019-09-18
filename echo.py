@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
     # Setup GHU
     symbols = [str(a) for a in range(num_symbols)]
-    length = getsize(len(symbols))
+    length = getsize(max(len(symbols),32))
     layer_sizes = {"rinp": length, "rout":length}
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)

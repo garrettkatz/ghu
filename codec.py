@@ -4,7 +4,7 @@ from orthogonal_patterns import *
 
 def getsize(size):
     n = nearest_valid_hadamard_size(size)
-    return n if n%2==0 else (n+1)
+    return n #if n%2==0 else (n+1)
 
 class Codec(object):
     def __init__(self, layer_sizes, symbols, rho = .999, requires_grad=False,ortho=False):
@@ -12,7 +12,7 @@ class Codec(object):
         if ortho:
             
             self.encoder = {}
-            n = getsize(len(symbols))
+            n = getsize(max(len(symbols),32))
             for k,size in layer_sizes.items():
                 mat = random_orthogonal_patterns(n,len(symbols))
                 temp = { k: {symbols[s]: tr.tensor(rho * mat[:,s].astype(np.float32),requires_grad=requires_grad)for s in range(len(symbols))}}

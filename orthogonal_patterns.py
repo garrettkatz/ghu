@@ -49,9 +49,9 @@ def calculate_half(n):
 def nearest_valid_hadamard_size(i):
     #print("Checking for size", i)
     i = i//1
-    multiple = give_new_number(i)
-    return multiple[0]
-    # return nearest_power_of_2(i)
+    # multiple = give_new_number(i)
+    # return multiple[0]
+    return nearest_power_of_2(i)
 
 def nearest_power_of_2(i):
     return 2**int(np.ceil(np.log2(i)))

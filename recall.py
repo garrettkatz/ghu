@@ -24,7 +24,7 @@ def trials(i, avgrew, gradnorm):
     num_episodes = 6000
 
     symbols = num_symbols+alpha
-    length = getsize(len(symbols))
+    length = getsize(max(len(symbols),32))
     layer_sizes = {"rinp": length, "rout":length, "rtemp":length}
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
@@ -56,13 +56,10 @@ def trials(i, avgrew, gradnorm):
         val = np.random.choice(alpha[:], size=3, replace=False)
         #val2 = np.random.choice(alpha[2:4], size=1, replace=False)
         lookup = { key[0]:val[0], key[1]:val[1], key[2]:val[2] }
-        inputs[0]= key[0]
-        inputs[1]= val[0]
-        inputs[2]= key[1]
-        inputs[3]= val[1]
-        inputs[4] = key[2]
-        inputs[5] = val[2]
-        #inputs[4]=":"
+        
+        for i in range(3):
+            inputs[2*i]=key[i]
+            inputs[2*i+1]=val[i]
         new = np.random.choice(key, size=1, replace=False)
         inputs[6] = new[0]
         #print("inputs",inputs)
@@ -85,7 +82,7 @@ def trials(i, avgrew, gradnorm):
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu,
-        num_epochs = 3000,
+        num_epochs = 10000,
         episode_duration = 7,
         training_example = training_example,
         reward = reward,
