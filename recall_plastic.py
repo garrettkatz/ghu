@@ -8,7 +8,7 @@ import numpy as np
 import torch as tr
 import matplotlib.pyplot as pt
 from ghu import *
-from codec import Codec
+from codec import *
 from controller import Controller
 from lvd import lvd
 from reinforce import reinforce
@@ -17,8 +17,8 @@ if __name__ == "__main__":
     print("*******************************************************")
     
     # Configuration
-    layer_sizes = {"rinp": 256, "rout":256, "rtmp": 256}
-    hidden_size = 64
+    #layer_sizes = {"rinp": 256, "rout":256, "rtmp": 256}
+    hidden_size = 40
     rho = .99
     plastic = ["rinp<rtmp"]
     remove_pathways = ["rinp<rout", "rout<rtmp"]
@@ -27,6 +27,8 @@ if __name__ == "__main__":
     # Setup GHU
     num_symbols = 2
     symbols = "abc"[:num_symbols] + "0" + "123"[:num_symbols]
+    length = max(getsize(len(symbols)),32)
+    layer_sizes = {"rinp": length, "rout":length, "rtmp":length}
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
     for p in remove_pathways: pathways.pop(p)
@@ -76,7 +78,7 @@ if __name__ == "__main__":
             
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 500,
+        num_epochs = 1500,
         episode_duration = 8,
         training_example = training_example,
         reward = reward,

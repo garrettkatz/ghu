@@ -75,3 +75,54 @@ class Controller(nn.Module):
         
         return distributions, choices, likelihoods, h
 
+
+class SController(nn.Module):
+    """
+    activity, plasticity: dicts = controller(v: dict)
+    MLP with one recurrent hidden layer
+    """
+    def __init__(self, layer_sizes, pathways, hidden_size,
+        plastic=[], input_keys=None, nonlinearity='tanh'):
+
+        if input_keys is None: input_keys = layer_sizes.keys()
+        super(Controller, self).__init__()
+        self.layer_sizes = layer_sizes
+        self.input_keys = input_keys
+        self.plastic = plastic
+        self.hidden_size = hidden_size
+        self.rnn = nn.RNN(
+            sum([layer_sizes[q] for q in input_keys]),
+            hidden_size, nonlinearity=nonlinearity)
+        self.incoming = { # pathways organized by destination layer
+            q: [p for p, (q_,r) in pathways.items() if q_ == q]
+            for q in self.layer_sizes}
+        self.activity_readouts = nn.ModuleDict({
+            q: nn.Sequential(
+                nn.Linear(hidden_size, len(self.incoming[q])),
+                nn.Softmax(dim=-1))
+            for q in self.layer_sizes})
+        self.plasticity_readout = nn.Sequential(
+            nn.Linear(hidden_size, len(plastic)),
+            nn.Sigmoid())
+
+    def forward(self, v, h_0):
+        # recur, starting from time T
+        # v[t,b,:] = concatenated input layers at time T+t in batch b
+        # h_0[0,b,:] = hidden layer at time T-1 in batch b
+        # h[t,b,:] = hidden layer at time T+t in batch b
+        # ad[q][t,b,r] = Pr(choosing incoming r at time t in batch b)
+        # pd[t,b,p] = Pr(learning in pathway p at time t in batch b)
+        h, _ = self.rnn(v, h_0) 
+        ad = {q: self.activity_readouts[q](h) for q in self.layer_sizes}
+        pd = self.plasticity_readout(h)
+        return ad, pd, h
+
+    def act(self, v, h, choices=None):
+        # v[q] = input layer q activity at current time
+        # h = hidden layer activity at previous time
+        # provide choices = ac, pc to override sampling
+        ad, pd, h = self.forward(
+            tr.cat([v[k] for k in self.input_keys], dim=1).unsqueeze(0), h)
+
+        return ad, pd, h
+

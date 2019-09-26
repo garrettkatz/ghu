@@ -24,7 +24,11 @@ def trials(i, avgrew, gradnorm):
     num_episodes = 6000
 
     symbols = num_symbols+alpha
+<<<<<<< HEAD
+    length = max(getsize(len(symbols)),32)
+=======
     length = getsize(max(len(symbols),32))
+>>>>>>> 4e1074656a94081144187c895c760f300ef43623
     layer_sizes = {"rinp": length, "rout":length, "rtemp":length}
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
