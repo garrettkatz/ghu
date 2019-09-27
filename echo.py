@@ -20,16 +20,12 @@ if __name__ == "__main__":
     #layer_sizes = {"rinp": 3, "rout":3}
     hidden_size = 16
     rho = .99
-    plastic = []
+    plastic = ["rinp<rout"]
     num_episodes = 200
 
     # Setup GHU
     symbols = [str(a) for a in range(num_symbols)]
-<<<<<<< HEAD
     length = max(getsize(len(symbols)),32)
-=======
-    length = getsize(max(len(symbols),32))
->>>>>>> 4e1074656a94081144187c895c760f300ef43623
     layer_sizes = {"rinp": length, "rout":length}
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
@@ -67,7 +63,7 @@ if __name__ == "__main__":
 
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 100,
+        num_epochs = 1,
         episode_duration = 5,
         training_example = training_example,
         reward = reward,

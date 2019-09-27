@@ -8,7 +8,7 @@ import numpy as np
 import torch as tr
 import torch.nn as nn
 from codec import Codec
-from controller import Controller
+from controller import *
 
 class GatedHebbianUnit(object):
     def __init__(self, layer_sizes, pathways, controller, codec, batch_size=1, plastic=[]):
@@ -81,10 +81,12 @@ class GatedHebbianUnit(object):
         # Associative recall
         self.v[t+1] = {}
         for q in self.layer_sizes.keys():
-
+            #print("Q",q)
             # Select out p,r for each batch element to prepare the batch matmul
             WL_q, WR_q, v_q = [], [], []
+            #print("self.ac[t][q][0]",tr.transpose(self.ac[t][q][0],0,1))
             for b,i in enumerate(self.ac[t][q][0]):
+                #print("p,r",self.controller.incoming[q][i],self.pathways[self.controller.incoming[q][i]])
                 p = self.controller.incoming[q][i]
                 _, r = self.pathways[p]
                 WL_q.append(self.WL[p][b])
@@ -95,7 +97,8 @@ class GatedHebbianUnit(object):
             WL_q, WR_q, v_q = tr.stack(WL_q), tr.stack(WR_q), tr.stack(v_q)
             self.v[t+1][q] = tr.tanh(
                 tr.matmul(WL_q, tr.matmul(WR_q, v_q.unsqueeze(2)))).squeeze(2)
-
+            #print("Shape",self.v[t+1][q].shape)
+        #print("pc",self.pc)
         # Associative learning
         for p in self.pathways.keys():
             q, r = self.pathways[p]
@@ -103,8 +106,11 @@ class GatedHebbianUnit(object):
             dWR = tr.zeros(self.batch_size, 1, self.layer_sizes[r])
             # Select out batch elements where pathway p learns
             if p in self.plastic:
+                print("in plastic")
                 i = self.plastic.index(p)
+                ("pc[t]",self.pc[t][0,:,i])
                 b = (self.pc[t][0,:,i] == 1)
+                print("bb",b.shape)
                 if b.sum() > 0:
                     dWL[b], dWR[b] = self.rehebbian(
                         self.WL[p][b], self.WR[p][b], self.v[t-1][r][b], self.v[t][q][b])
@@ -139,7 +145,7 @@ class SGatedHebbianUnit(object):
         controller: dict of layer activity -> s,l gate dicts
         batch_size: number of examples to process at a time
         """
-        super(GatedHebbianUnit, self).__init__()
+        super(SGatedHebbianUnit, self).__init__()
         self.layer_sizes = layer_sizes
         self.pathways = pathways
         self.controller = controller
@@ -162,7 +168,7 @@ class SGatedHebbianUnit(object):
     def clone(self):
         # copies associative weight matrices and initial activity
         # assumes no ticks have been called yet
-        ghu = GatedHebbianUnit(
+        ghu = SGatedHebbianUnit(
             layer_sizes = self.layer_sizes,
             pathways = self.pathways,
             controller = self.controller,
@@ -189,52 +195,41 @@ class SGatedHebbianUnit(object):
     def tick(self, detach=True, choices=None):
         # choices passed to controller
         t = len(self.ad)
-
         # Controller
         adis,pdis, self.h[t] = self.controller.act(
             self.v[t] if not detach else
                 {q: v.clone().detach() for q, v in self.v[t].items()},
             self.h[t-1], choices)
         self.ad[t], self.pd[t] = adis, pdis
-
+        #print(self.v[t])
         # Associative recall
         # v[q][t+1] = tanh(sum_r(ad[q][r]*W[q,r]*v[r][t]))
         self.v[t+1] = {}
         for q in self.layer_sizes.keys():
-            WL_q, WR_q, v_q = [], [], []
+            #print("v[t][q]",self.v[t][q])
+            #print("QQQ",q)
             p = self.controller.incoming[q]
-            _, r = self.pathways[p]
-            WL_q = self.WL[p]
-            WR_q = self.WR[p]
-            v_q = v[t][r]
+            #print("PPP",p)
+            summ = tr.zeros(self.v[t][q].shape)
+            for i in range(len(p)):
+
+                _, r = self.pathways[p[i]]
+                #print("RRR",r)
+                WL_q = self.WL[p[i]]
+                WR_q = self.WR[p[i]]
+                #print("WWw",WL_q,WR_q)
+                v_q = self.v[t][r]
+                #print("VQ",v_q)
+                #print("ppnew",p[i])
+                inter = tr.matmul(WL_q, tr.matmul(WR_q, v_q.unsqueeze(2))).squeeze(2)
+                mid = ((self.ad[t][q].squeeze(0)[0][i]).unsqueeze(0)).unsqueeze(0)
+                #print("mid",mid.shape)
+                summ += tr.matmul(mid,inter)
+                #print("Summm", summ)
+            self.v[t+1][q] = tr.tanh(summ)
+            #print("at t+1",self.v[t+1][q])
+        #print(self.v[t+1])
             
-            for b,i in enumerate(self.ac[t][q][0]):
-                p = self.controller.incoming[q][i]
-                _, r = self.pathways[p]
-                WL_q.append(self.WL[p][b])
-                WR_q.append(self.WR[p][b])
-                v_q.append(self.v[t][r][b,:])
-            tr.stack(WL_q)
-            tr.stack(WR_q)
-            WL_q, WR_q, v_q = tr.stack(WL_q), tr.stack(WR_q), tr.stack(v_q)
-            self.v[t+1][q] = tr.tanh(
-                tr.matmul(WL_q, tr.matmul(WR_q, v_q.unsqueeze(2)))).squeeze(2)
-
-        for q in self.layer_sizes.keys():
-
-            # Select out p,r for each batch element to prepare the batch matmul
-            WL_q, WR_q, v_q = [], [], []
-            for b,i in enumerate(self.ac[t][q][0]):
-                p = self.controller.incoming[q][i]
-                _, r = self.pathways[p]
-                WL_q.append(self.WL[p][b])
-                WR_q.append(self.WR[p][b])
-                v_q.append(self.v[t][r][b,:])
-            tr.stack(WL_q)
-            tr.stack(WR_q)
-            WL_q, WR_q, v_q = tr.stack(WL_q), tr.stack(WR_q), tr.stack(v_q)
-            self.v[t+1][q] = tr.tanh(
-                tr.matmul(WL_q, tr.matmul(WR_q, v_q.unsqueeze(2)))).squeeze(2)
 
         # Associative learning
         for p in self.pathways.keys():
@@ -243,8 +238,14 @@ class SGatedHebbianUnit(object):
             dWR = tr.zeros(self.batch_size, 1, self.layer_sizes[r])
             # Select out batch elements where pathway p learns
             if p in self.plastic:
+                #print("inside if p in self.plastic")
                 i = self.plastic.index(p)
-                b = (self.pc[t][0,:,i] == 1)
+                #print("i",i)
+                pc = tr.bernoulli(self.pd[t])
+                #print("pd[t]",self.pd[t])
+                #print("pc",pc)
+                b = (pc[0,:,i] == 1)
+                #print("bbbbbbbb",b)
                 if b.sum() > 0:
                     dWL[b], dWR[b] = self.rehebbian(
                         self.WL[p][b], self.WR[p][b], self.v[t-1][r][b], self.v[t][q][b])
@@ -300,14 +301,14 @@ def turing_initializer(register_names, num_addresses):
 if __name__ == "__main__":
     
     
-    layer_sizes = {"r0": 3, "r1":3}
+    layer_sizes = {"r0": 8, "r1":8}
     pathways = {0:("r0","r0"), 1:("r1","r0"), 2:("r1","r1")}
     hidden_size = 5
-    batch_size = 2
-
+    batch_size = 1
+    plastic = [1,2]
     codec = Codec(layer_sizes, "01")
-    controller = Controller(layer_sizes, pathways, hidden_size)
-    ghu = GatedHebbianUnit(layer_sizes, pathways, controller, codec, batch_size=batch_size)
+    controller = SController(layer_sizes, pathways, hidden_size, plastic)
+    ghu = SGatedHebbianUnit(layer_sizes, pathways, controller, codec, batch_size,plastic)
 
     ghu.associate([
         (0, "0", "0"),
@@ -338,7 +339,7 @@ if __name__ == "__main__":
             # ghu.v[-1]["r1"] = codec.encode("r1", str(1))
             # ghu.v[0]["r0"] = codec.encode("r0", str(0))
             # ghu.v[0]["r1"] = codec.encode("r1", str(0))
-    ghu.tick(num_steps=2)
+    ghu.tick()
 
     # e = ghu.g[len(ghu.g)-1].sum()
     # e.backward()

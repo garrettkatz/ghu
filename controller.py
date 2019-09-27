@@ -68,10 +68,15 @@ class Controller(nn.Module):
         # provide choices = ac, pc to override sampling
         ad, pd, h = self.forward(
             tr.cat([v[k] for k in self.input_keys], dim=1).unsqueeze(0), h)
+        #print("AAAADDD",ad)
+        #print("PPDDDD",pd)
 
         distributions = ad, pd
         if choices is None: choices = sample_choices(*distributions)
         likelihoods = get_likelihoods(*choices, *distributions)
+
+        # print("choices", choices)
+        #print("likelihoods", likelihoods[0])
         
         return distributions, choices, likelihoods, h
 
@@ -85,7 +90,7 @@ class SController(nn.Module):
         plastic=[], input_keys=None, nonlinearity='tanh'):
 
         if input_keys is None: input_keys = layer_sizes.keys()
-        super(Controller, self).__init__()
+        super(SController, self).__init__()
         self.layer_sizes = layer_sizes
         self.input_keys = input_keys
         self.plastic = plastic
@@ -123,6 +128,7 @@ class SController(nn.Module):
         # provide choices = ac, pc to override sampling
         ad, pd, h = self.forward(
             tr.cat([v[k] for k in self.input_keys], dim=1).unsqueeze(0), h)
+
 
         return ad, pd, h
 
