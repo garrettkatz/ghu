@@ -206,8 +206,8 @@ class SGatedHebbianUnit(object):
         # v[q][t+1] = tanh(sum_r(ad[q][r]*W[q,r]*v[r][t]))
         self.v[t+1] = {}
         for q in self.layer_sizes.keys():
-            #print("v[t][q]",self.v[t][q])
-            #print("QQQ",q)
+            # print("v[t][q]",self.v[t][q])
+            # print("QQQ",q)
             p = self.controller.incoming[q]
             #print("PPP",p)
             summ = tr.zeros(self.v[t][q].shape)
@@ -219,16 +219,15 @@ class SGatedHebbianUnit(object):
                 WR_q = self.WR[p[i]]
                 #print("WWw",WL_q,WR_q)
                 v_q = self.v[t][r]
-                #print("VQ",v_q)
-                #print("ppnew",p[i])
+                # print("VQ",v_q)
+                # print("ppnew",p[i])
                 inter = tr.matmul(WL_q, tr.matmul(WR_q, v_q.unsqueeze(2))).squeeze(2)
-                mid = ((self.ad[t][q].squeeze(0)[0][i]).unsqueeze(0)).unsqueeze(0)
-                #print("mid",mid.shape)
-                summ += tr.matmul(mid,inter)
-                #print("Summm", summ)
+                mid = ((self.ad[t][q].squeeze(0)[0][i]).unsqueeze(0))
+                for k in range(inter.shape[0]):
+                	summ[k,:] += tr.matmul(mid,inter[k,:].unsqueeze(0))
             self.v[t+1][q] = tr.tanh(summ)
-            #print("at t+1",self.v[t+1][q])
-        #print(self.v[t+1])
+        #     print("at t+1",self.v[t+1][q])
+        # print(self.v[t+1])
             
 
         # Associative learning
@@ -304,7 +303,7 @@ if __name__ == "__main__":
     layer_sizes = {"r0": 8, "r1":8}
     pathways = {0:("r0","r0"), 1:("r1","r0"), 2:("r1","r1")}
     hidden_size = 5
-    batch_size = 1
+    batch_size = 2
     plastic = [1,2]
     codec = Codec(layer_sizes, "01")
     controller = SController(layer_sizes, pathways, hidden_size, plastic)
