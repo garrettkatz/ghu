@@ -20,7 +20,7 @@ if __name__ == "__main__":
     #layer_sizes = {"rinp": 3, "rout":3}
     hidden_size = 16
     rho = .99
-    plastic = ["rinp<rout"]
+    plastic = []
     num_episodes = 200
 
     # Setup GHU
@@ -63,7 +63,7 @@ if __name__ == "__main__":
 
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 1,
+        num_epochs = 100,
         episode_duration = 5,
         training_example = training_example,
         reward = reward,
