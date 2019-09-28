@@ -12,15 +12,15 @@ from supervised import supervise
 
 
 if __name__ == "__main__":
-    print("********************Supervised Echo************************")
+    print("********************Supervised filter************************")
     
     # Configuration
-    num_symbols = 9
-    #layer_sizes = {"rinp": 3, "rout":3}
-    hidden_size = 16
     rho = .99
+    num_symbols = 9
+    
+    hidden_size = 24
     plastic = []
-    num_episodes = 20
+    num_episodes = 500
 
     # Setup GHU
     symbols = [str(a) for a in range(num_symbols)]
@@ -46,17 +46,24 @@ if __name__ == "__main__":
     # training example generation
     def training_example():
         # Randomly choose echo symbol (excluding 0 separator)
-        inputs = np.random.choice(symbols[1:], size=1)
-        targets = inputs
+        #max_time = 6
+        list_symbols = 8
+        min_length = 8
+        max_length = 8
+        list_length = np.random.randint(min_length, max_length+1)
+        inputs = np.array([separator]*(list_length))
+        inputs[:] = np.random.choice(symbols[1:], size=list_length, replace=False)
+        #print("inputs",inputs)
+        targets = [s for s in inputs if int(s)>4]
         return inputs, targets
     
 
     # Run optimization
     loss = supervise(ghu,
-        num_epochs = 30,
+        num_epochs = 100,
         training_example = training_example,
-        task = "echo",
-        learning_rate = .1,
+        task = "filter",
+        learning_rate = .01,
         verbose = 1,
         save_file = "tmp.pkl")
     
