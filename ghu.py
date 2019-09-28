@@ -163,7 +163,7 @@ class SGatedHebbianUnit(object):
         self.h = {-1: tr.zeros(1, batch_size, controller.hidden_size)}
         self.ad = {}
         self.pd = {}
-        
+        #print("AAAA",self.batch_size)
 
     def clone(self):
         # copies associative weight matrices and initial activity

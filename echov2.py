@@ -4,15 +4,14 @@ Echo input (rinp) at output (rout)
 import numpy as np
 import torch as tr
 import matplotlib.pyplot as pt
+import pickle as pk
 from ghu import *
 from codec import *
-from controller import Controller
-from lvd import lvd
-from reinforce import reinforce
-import json 
+from controller import *
+from supervised import supervise
 
 def trials(i, avgrew, gradnorm):
-    print("***************************** Trial ",str(i+1),"*******************************")
+    print("*****************************Supervised multiecho*******************************")
     
     # GHU settings
     num_symbols =6
