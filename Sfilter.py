@@ -54,7 +54,12 @@ if __name__ == "__main__":
         inputs = np.array([separator]*(list_length))
         inputs[:] = np.random.choice(symbols[1:], size=list_length, replace=False)
         #print("inputs",inputs)
-        targets = [s for s in inputs if int(s)>4]
+        targets = []
+        for s in inputs:
+            if int(s)>4:
+                targets.append(s)
+            else:
+                targets.append("0")
         return inputs, targets
     
 
@@ -65,7 +70,7 @@ if __name__ == "__main__":
         task = "filter",
         learning_rate = .01,
         verbose = 1,
-        save_file = "tmp.pkl")
+        save_file = "sfilter.pkl")
     
     with open("tmp.pkl","rb") as f:
         config, loss = pk.load(f)

@@ -10,7 +10,7 @@ import torch.nn as nn
 from codec import Codec
 from controller import *
 
-class GatedHebbianUnit(object):
+class GatedHebbianUnit(nn.Module):
     def __init__(self, layer_sizes, pathways, controller, codec, batch_size=1, plastic=[]):
         """
         layer_sizes[k] (dict): size of layer k
@@ -137,7 +137,7 @@ class GatedHebbianUnit(object):
             Wv = tr.matmul(self.WL[p][0], tr.matmul(self.WR[p][0], self.codec.encode(r, s).view(-1,1)))
             assert(self.codec.decode(q, Wv.squeeze()) == t)
 
-class SGatedHebbianUnit(object):
+class SGatedHebbianUnit(nn.Module):
     def __init__(self, layer_sizes, pathways, controller, codec, batch_size=1, plastic=[]):
         """
         layer_sizes[k] (dict): size of layer k

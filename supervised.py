@@ -9,7 +9,7 @@ def supervise(ghu_init, num_epochs, training_example, task,
     # training_example: function that produces an example
     # reward: function of ghu, target/actual output
     #parameters = [ghu_init.v,ghu_init.h, ghu_init.WL, ghu_init.WR, ghu_init.controller,ghu_init.codec]
-    optimizer = tr.optim.Adam(ghu_init.controller.parameters(), lr=learning_rate)
+    optimizer = tr.optim.SGD(ghu_init.controller.parameters(), lr=learning_rate)
     controller = ghu_init.controller
     codec = ghu_init.codec
 
@@ -32,7 +32,7 @@ def supervise(ghu_init, num_epochs, training_example, task,
         tars = []
         if verbose > 1: print("Running GHU...")
         outputs = []
-        for t in range(len(targets[0])):
+        for t in range(max(len(targets[0]),len(inputs[0]))):
             if verbose > 1: print(" t=%d..." % t)
 
             if t < len(inputs[0]):

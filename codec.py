@@ -1,12 +1,13 @@
 import numpy as np
 import torch as tr
+import torch.nn as nn
 from orthogonal_patterns import *
 
 def getsize(size):
     n = nearest_valid_hadamard_size(size)
     return n #if n%2==0 else (n+1)
 
-class Codec(object):
+class Codec(nn.Module):
     def __init__(self, layer_sizes, symbols, rho = .999, requires_grad=False,ortho=False):
         self.rho = rho
         if ortho:
