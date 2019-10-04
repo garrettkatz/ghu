@@ -4,12 +4,12 @@ import pickle as pk
 from controller import *
 
 def supervise(ghu_init, num_epochs, training_example, task,
-    learning_rate=0.1, verbose=3, save_file=None):
+    learning_rate,Optimizer, verbose=3, save_file=None):
     # ghu_init: initial ghu cloned for each episode
     # training_example: function that produces an example
     # reward: function of ghu, target/actual output
     #parameters = [ghu_init.v,ghu_init.h, ghu_init.WL, ghu_init.WR, ghu_init.controller,ghu_init.codec]
-    optimizer = tr.optim.SGD(ghu_init.controller.parameters(), lr=learning_rate)
+    optimizer = Optimizer(ghu_init.controller.parameters(), lr=learning_rate)
     controller = ghu_init.controller
     codec = ghu_init.codec
 
@@ -30,6 +30,7 @@ def supervise(ghu_init, num_epochs, training_example, task,
         #print("TARGETS",targets)
         # Run GHU
         tars = []
+        pred1 = []
         if verbose > 1: print("Running GHU...")
         outputs = []
         for t in range(max(len(targets[0]),len(inputs[0]))):
@@ -41,17 +42,20 @@ def supervise(ghu_init, num_epochs, training_example, task,
                     for b in range(ghu.batch_size)])
             ghu.tick() # Take a step
             tars.append([codec.encoder["rout"][targets[b][t]] for b in range(ghu.batch_size)])
+            pred1.append([ghu.v[t+1]["rout"][b,:]for b in range(ghu.batch_size)])
             outputs.append([
                 codec.decode("rout", ghu.v[t+1]["rout"][b,:])
                 for b in range(ghu.batch_size)])
         # print("OUT",ghu.v[t+1]["rout"].shape)
         # print("TARS",len(tars[0]))
-        tt = tr.zeros(ghu.v[t+1]["rout"].shape)
+        pred = tr.zeros(ghu.v[t+1]["rout"].shape)
+        tt  = tr.zeros(ghu.v[t+1]["rout"].shape)
         #print("TTT",tt.shape)
         for l in range(len(tars[0])):
             tt[l,:] += tars[0][l]
+            pred[l,:] += pred1[0][l]
         #print("jbkhjjhb",tt)
-        pred = ghu.v[t+1]["rout"]
+        
         # Rearrange outputs by batch
         outputs = [[outputs[t][b] for t in range(len(targets[0]))] for b in range(ghu.batch_size)]
         # Show episode results
@@ -59,14 +63,16 @@ def supervise(ghu_init, num_epochs, training_example, task,
             for b in range(min(ghu.batch_size, 3)):
                 print(" Epoch %d, episode %d: task: %s %s -> %s vs %s" % (
                     epoch, b, task, list(inputs[b]), list(outputs[b]), list(targets[b])))
-            print("********************************************")
+            
 
         loss = tr.tensor(0., dtype=tr.float32)
         for i in range(tt.shape[0]):
             #print("AT i", pred[i], tt[i])
-            loss += tr.sqrt(tr.mean(tr.pow(pred[i]-tt[i], 2.0)))
-            #loss = tr.nn.MSELoss(outputs[i], tt[i])
+            loss += (tr.mean(tr.pow(pred[i]-tt[i], 2.0)))
+            #loss = tr.nn.MSELoss(pred[i], tt[i])
         loss *= (1/ghu.batch_size)
+        print("Loss ----------------->>>>> ", loss)
+        print("********************************************")
         losscur[epoch]=loss
         optimizer.zero_grad()
         loss.backward()

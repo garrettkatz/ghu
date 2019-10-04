@@ -198,7 +198,7 @@ class SGatedHebbianUnit(nn.Module):
         # Controller
         adis,pdis, self.h[t] = self.controller.act(
             self.v[t] if not detach else
-                {q: v.clone().detach() for q, v in self.v[t].items()},
+                {q: v.clone() for q, v in self.v[t].items()},
             self.h[t-1], choices)
         self.ad[t], self.pd[t] = adis, pdis
         #print(self.v[t])

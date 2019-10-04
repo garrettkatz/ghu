@@ -16,7 +16,7 @@ if __name__ == "__main__":
     
     # Configuration
     rho = .99
-    num_symbols = 9
+    num_symbols = 5
     
     hidden_size = 24
     plastic = []
@@ -47,16 +47,16 @@ if __name__ == "__main__":
     def training_example():
         # Randomly choose echo symbol (excluding 0 separator)
         #max_time = 6
-        list_symbols = 8
-        min_length = 8
-        max_length = 8
+        list_symbols = 4
+        min_length = 4
+        max_length = 4
         list_length = np.random.randint(min_length, max_length+1)
         inputs = np.array([separator]*(list_length))
         inputs[:] = np.random.choice(symbols[1:], size=list_length, replace=False)
         #print("inputs",inputs)
         targets = []
         for s in inputs:
-            if int(s)>4:
+            if int(s)>2:
                 targets.append(s)
             else:
                 targets.append("0")
@@ -65,14 +65,14 @@ if __name__ == "__main__":
 
     # Run optimization
     loss = supervise(ghu,
-        num_epochs = 100,
+        num_epochs = 1000,
         training_example = training_example,
         task = "filter",
-        learning_rate = .01,
+        learning_rate = .1,
         verbose = 1,
         save_file = "sfilter.pkl")
     
-    with open("tmp.pkl","rb") as f:
+    with open("sfilter.pkl","rb") as f:
         config, loss = pk.load(f)
 
     print(config)

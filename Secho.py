@@ -57,6 +57,7 @@ if __name__ == "__main__":
         training_example = training_example,
         task = "echo",
         learning_rate = .1,
+        Optimizer = tr.optim.SGD ,
         verbose = 1,
         save_file = "tmp.pkl")
     
