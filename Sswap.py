@@ -12,15 +12,15 @@ from supervised import supervise
 
 
 if __name__ == "__main__":
-    print("********************Supervised filter************************")
+    print("********************Supervised Echo************************")
     
     # Configuration
+    num_symbols = 4
+    #layer_sizes = {"rinp": 3, "rout":3}
+    hidden_size = 16
     rho = .99
-    num_symbols = 5
-    
-    hidden_size = 24
     plastic = []
-    num_episodes = 500
+    num_episodes = 1000
 
     # Setup GHU
     symbols = [str(a) for a in range(num_symbols)]
@@ -45,21 +45,9 @@ if __name__ == "__main__":
 
     # training example generation
     def training_example():
-        # Randomly choose echo symbol (excluding 0 separator)
-        #max_time = 6
-        list_symbols = 4
-        min_length = 4
-        max_length = 4
-        list_length = np.random.randint(min_length, max_length+1)
-        inputs = np.array([separator]*(list_length))
-        inputs[:] = np.random.choice(symbols[1:], size=list_length, replace=False)
-        #print("inputs",inputs)
-        targets = []
-        for s in inputs:
-            if int(s)>2:
-                targets.append(s)
-            else:
-                targets.append("0")
+        # Randomly choose swap symbols (excluding 0 separator)
+        inputs = np.random.choice(symbols[1:], size=2, replace=False)
+        targets = inputs[::-1]
         return inputs, targets
     
 
@@ -67,13 +55,13 @@ if __name__ == "__main__":
     loss = supervise(ghu,
         num_epochs = 1000,
         training_example = training_example,
-        task = "filter",
-        learning_rate = .1,
-        Optimizer = tr.optim.SGD ,
+        task = "swap",
+        learning_rate = 0.001,
+        Optimizer = tr.optim.Adam,
         verbose = 1,
-        save_file = "sfilter.pkl")
+        save_file = "swap.pkl")
     
-    with open("sfilter.pkl","rb") as f:
+    with open("swap.pkl","rb") as f:
         config, loss = pk.load(f)
 
     print(config)
