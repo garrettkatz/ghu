@@ -68,8 +68,8 @@ if __name__ == "__main__":
         num_epochs = 1000,
         training_example = training_example,
         task = "filter",
-        learning_rate = .1,
-        Optimizer = tr.optim.SGD ,
+        learning_rate = .003,
+        Optimizer = tr.optim.ASGD ,
         verbose = 1,
         save_file = "sfilter.pkl")
     

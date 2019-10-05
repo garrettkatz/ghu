@@ -56,8 +56,8 @@ if __name__ == "__main__":
         num_epochs = 1000,
         training_example = training_example,
         task = "swap",
-        learning_rate = 0.001,
-        Optimizer = tr.optim.Adam,
+        learning_rate = 0.003,
+        Optimizer = tr.optim.ASGD,
         verbose = 1,
         save_file = "swap.pkl")
     
