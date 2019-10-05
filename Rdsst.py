@@ -19,7 +19,7 @@ def trials(i, avgrew, gradnorm):
     plastic = []
     #plastic = ["rtemp>rinp"]
 
-    num_episodes = 1000
+    num_episodes = 500
 
     symbols = ["up","left","down","right","_","+","&"] + letters + digits
     length = getsize(max(len(symbols),32))
@@ -36,7 +36,7 @@ def trials(i, avgrew, gradnorm):
     ghu.associate(associations)
     
     # Initialize layers
-    separator = "0"
+    separator = "&"
     for k in layer_sizes.keys():
         # ghu_init.v[0][k] = codec.encode(k, separator) # !! no good anymore
         # !! Now we have to repeat the separator for each episode in the batch
@@ -61,14 +61,20 @@ def trials(i, avgrew, gradnorm):
         	inputs = np.array(inp)
         	targets = np.array(tar)
         else:
-            inputs = np.array(result1[str(choice)][0])
-            targets = np.array(result1[str(choice)][1])
-        
+            inp = result1[str(choice)][0]
+            tar = result1[str(choice)][1]
+        newinp = []
+        for i in range(len(inp)):
+        	newinp.append(inp[i])
+        	newinp.append(tar[i])
+        inputs = np.array(newinp) 
+        targets = np.array(tar)      
         return inputs, targets
 
     # reward calculation based on individual steps
     def reward(ghu, targets, outputs):
-        outputs_ = outputs
+        outputs_ = [o for o in outputs if o!="&"]
+        targets = [t for t in targets if t!="&"]
         _, d = lvd(outputs_, targets)
         r = np.zeros(len(outputs))
         for i in range(1,d.shape[0]):
@@ -80,7 +86,7 @@ def trials(i, avgrew, gradnorm):
     avg_rewards, grad_norms = reinforce(
         ghu,
         num_epochs = 10000,
-        episode_duration = 160,
+        episode_duration = 320,
         training_example = training_example,
         reward = reward,
         task = "dsst",
