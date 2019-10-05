@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     # Run optimization
     loss = supervise(ghu,
-        num_epochs = 1000,
+        num_epochs = 5000,
         training_example = training_example,
         task = "filter",
         learning_rate = .003,
