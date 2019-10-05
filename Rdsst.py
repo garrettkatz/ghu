@@ -75,10 +75,16 @@ def trials(i, avgrew, gradnorm):
     def reward(ghu, targets, outputs):
         outputs_ = [o for o in outputs if o!="&"]
         targets = [t for t in targets if t!="&"]
-        _, d = lvd(outputs_, targets)
+        zeros = [o for o in outputs if o=="&"]
+        totzeros = len(zeros)
         r = np.zeros(len(outputs))
-        for i in range(1,d.shape[0]):
-            r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
+        if len(outputs_)==0:
+            r[-1] -= (len(outputs)+100)
+        else:
+            _,d = lvd(outputs_,targets) 
+            for i in range(1,d.shape[0]):
+                r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
+            r[-1] -= 0.1*totzeros
         return r
     
     filename = "Rdsst"+str(i+1)+".png"
@@ -90,7 +96,7 @@ def trials(i, avgrew, gradnorm):
         training_example = training_example,
         reward = reward,
         task = "dsst",
-        learning_rate = .01,
+        learning_rate = .005,
         verbose=1)
 
     gradnorm[i+1]=grad_norms.tolist()
