@@ -12,7 +12,7 @@ from supervised import supervise
 
 
 if __name__ == "__main__":
-    print("********************Supervised Echo************************")
+    print("********************Supervised Echo************************",)
     
     # Configuration
     num_symbols = 4

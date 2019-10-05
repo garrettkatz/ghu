@@ -9,6 +9,7 @@ def supervise(ghu_init, num_epochs, training_example, task,
     # training_example: function that produces an example
     # reward: function of ghu, target/actual output
     #parameters = [ghu_init.v,ghu_init.h, ghu_init.WL, ghu_init.WR, ghu_init.controller,ghu_init.codec]
+    print("Optimizer "+str(Optimizer)+"learning_rate "+str(learning_rate))
     optimizer = Optimizer(ghu_init.controller.parameters(), lr=learning_rate)
     controller = ghu_init.controller
     codec = ghu_init.codec
@@ -68,8 +69,13 @@ def supervise(ghu_init, num_epochs, training_example, task,
         loss = tr.tensor(0., dtype=tr.float32)
         for i in range(tt.shape[0]):
             #print("AT i", pred[i], tt[i])
-            loss += (tr.mean(tr.pow(pred[i]-tt[i], 2.0)))
+            #loss += (tr.mean(tr.pow(pred[i]-tt[i], 2.0)))
             #loss = tr.nn.MSELoss(pred[i], tt[i])
+            if tr.abs(pred[i]-tt[i])<1:
+                loss+= 0.5*(tr.mean(tr.pow(pred[i]-tt[i], 2.0)))
+            else:
+                loss+= (tr.abs(pred[i]-tt[i])-0.5)
+
         loss *= (1/ghu.batch_size)
         print("Loss ----------------->>>>> ", loss)
         print("********************************************")
