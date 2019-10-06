@@ -68,14 +68,12 @@ def supervise(ghu_init, num_epochs, training_example, task,
 
         loss = tr.tensor(0.0, dtype = tr.float32)
         for i in range(tt.shape[0]):
-            #print("AT i", pred[i], tt[i])
-            #loss += (tr.mean(tr.pow(pred[i]-tt[i], 2.0)))
-            #loss = tr.nn.MSELoss(pred[i], tt[i])
-            if tr.abs(tr.mean(pred[i]-tt[i]))<1:
-                loss+= 0.5*(tr.mean(tr.pow(pred[i]-tt[i], 2.0)))
-            else:
-                loss+= (tr.abs(tr.mean(pred[i]-tt[i]))-0.5)
-            #loss += tr.nn.SmoothL1Loss(pred[i]-tt[i])
+            
+            # if tr.abs(tr.mean(pred[i]-tt[i]))<1:
+            #     loss+= 0.5*(tr.mean(tr.pow(pred[i]-tt[i], 2.0)))
+            # else:
+            #     loss+= (tr.abs(tr.mean(pred[i]-tt[i]))-0.5)
+            loss += tr.nn.functional.cross_entropy(pred[i],tt[i])
 
         loss *= (1/ghu.batch_size)
         print("Loss ----------------->>>>> ", loss)

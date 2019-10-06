@@ -58,45 +58,46 @@ def trials(i, avgrew, gradnorm):
         	for k in range(diff):
         		inp.append("&")
         		tar.append("&")
-        	inputs = np.array(inp)
-        	targets = np.array(tar)
         else:
             inp = result1[str(choice)][0]
             tar = result1[str(choice)][1]
-        newinp = []
-        for i in range(len(inp)):
-        	newinp.append(inp[i])
-        	newinp.append(tar[i])
-        inputs = np.array(newinp) 
-        targets = np.array(tar)      
+        inputs = np.array(["left","right","up","down"]+inp)   
+        targets = np.array(["&","&","&","&"]+tar)  
         return inputs, targets
 
     # reward calculation based on individual steps
     def reward(ghu, targets, outputs):
-        outputs_ = [o for o in outputs if o!="&"]
-        targets = [t for t in targets if t!="&"]
-        zeros = [o for o in outputs if o=="&"]
-        totzeros = len(zeros)
+        # outputs_ = [o for o in outputs if o!="&"]
+        # targets = [t for t in targets if t!="&"]
+        # zeros = [o for o in outputs if o=="&"]
+        # totzeros = len(zeros)
+        # r = np.zeros(len(outputs))
+        # if len(outputs_)==0:
+        #     r[-1] -= (len(outputs)+100)
+        # else:
+        #     _,d = lvd(outputs_,targets) 
+        #     for i in range(1,d.shape[0]):
+        #         r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
+        #     r[-1] -= 0.1*totzeros
+        # return r
+
         r = np.zeros(len(outputs))
-        if len(outputs_)==0:
-            r[-1] -= (len(outputs)+100)
-        else:
-            _,d = lvd(outputs_,targets) 
-            for i in range(1,d.shape[0]):
-                r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
-            r[-1] -= 0.1*totzeros
+        _,d = lvd(outputs,targets) 
+        for i in range(1,d.shape[0]):
+            r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
         return r
+
     
     filename = "Rdsst"+str(i+1)+".png"
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu,
-        num_epochs = 10000,
-        episode_duration = 320,
+        num_epochs = 8000,
+        episode_duration = 164,
         training_example = training_example,
         reward = reward,
         task = "dsst",
-        learning_rate = .005,
+        learning_rate = .01,
         verbose=1)
 
     gradnorm[i+1]=grad_norms.tolist()
