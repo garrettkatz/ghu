@@ -46,7 +46,7 @@ def trials(i, avgrew, gradnorm):
             num_episodes, dim=0)
 
     def training_example():
-        
+        actions = ["left","right","up","down"]
         with open("datadsst.json", "r") as file:
 	        result1 = json.load(file)
         choice = np.random.randint(1,500)
@@ -61,7 +61,10 @@ def trials(i, avgrew, gradnorm):
         else:
             inp = result1[str(choice)][0]
             tar = result1[str(choice)][1]
-        inputs = np.array(["left","right","up","down"]+inp)   
+        act = (np.random.choice(actions, size=4, replace=False)).tolist()
+        #print("CHECKING",act)
+        #inputt = act+inp
+        inputs = np.array(act+inp)   
         targets = np.array(["&","&","&","&"]+tar)  
         return inputs, targets
 
@@ -80,11 +83,13 @@ def trials(i, avgrew, gradnorm):
         #         r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
         #     r[-1] -= 0.1*totzeros
         # return r
-
+        fix = [o for o in outputs if o!="&"]
         r = np.zeros(len(outputs))
         _,d = lvd(outputs,targets) 
         for i in range(1,d.shape[0]):
             r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
+        if len(set(fix))==1:
+        	r[-1]-=200
         return r
 
     
