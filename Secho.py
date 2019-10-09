@@ -17,18 +17,18 @@ if __name__ == "__main__":
     # Configuration
     num_symbols = 9
     #layer_sizes = {"rinp": 3, "rout":3}
-    hidden_size = 16
+    hidden_size = 32
     rho = .99
     plastic = []
     num_episodes = 20
 
     # Setup GHU
     symbols = [str(a) for a in range(num_symbols)]
-    length = max(getsize(len(symbols)),32)
+    length = 100#max(getsize(len(symbols)),32)
     layer_sizes = {"rinp": length, "rout":length}
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
-    codec = Codec(layer_sizes, symbols, rho=rho, requires_grad=False,ortho=True)
+    codec = Codec(layer_sizes, symbols, rho=rho, requires_grad=True,ortho=False)
     #codec.show()
     controller = SController(layer_sizes, pathways, hidden_size, plastic)
     ghu = SGatedHebbianUnit(
@@ -49,13 +49,21 @@ if __name__ == "__main__":
         inputs = np.random.choice(symbols[1:], size=1)
         targets = inputs
         return inputs, targets
-    
 
+    def sloss(pred,y):
+        # if tr.abs(tr.mean(pred-y))<1:
+        loss = (tr.mean(tr.pow(pred-y, 2.0)))
+        # else:
+        #     loss = (tr.abs(tr.mean(pred-y))-0.5)
+        return loss
+    
     # Run optimization
     loss = supervise(ghu,
         num_epochs = 30,
         training_example = training_example,
         task = "echo",
+        episode_len=1,
+        loss_fun = sloss,
         learning_rate = .1,
         Optimizer = tr.optim.SGD ,
         verbose = 1,

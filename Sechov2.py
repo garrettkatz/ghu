@@ -25,7 +25,7 @@ def trials(i, avgrew, gradnorm):
     layer_sizes = {"rinp": length, "rout":length}
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
-    codec = Codec(layer_sizes, symbols, rho=.9, requires_grad = False, ortho = True)
+    codec = Codec(layer_sizes, symbols, rho=.9, requires_grad = True, ortho = True)
     controller = SController(layer_sizes, pathways, hidden_size, plastic)
 
     # Sanity check
@@ -48,28 +48,30 @@ def trials(i, avgrew, gradnorm):
         # Randomly choose echo symbol (excluding 0 separator)
         inputs = np.random.choice(symbols[1:], size=1)
         targets = [inputs[0] for i in range(int(inputs[0]))]
+        for _ in range(5-int(inputs[0])):
+            targets.append("0")
         return inputs, targets
     
    
-    # avg_rewards, grad_norms = reinforce(
-    #     ghu,
-    #     num_epochs = 1200,
-    #     episode_duration = 6,
-    #     training_example = training_example,
-    #     reward = reward,
-    #     task = "echov2",
-    #     learning_rate = 0.008,
-    #     verbose = 1)
+    def sloss(pred,y):
+        # if tr.abs(tr.mean(pred-y))<1:
+        loss = (tr.mean(tr.pow(pred-y, 2.0)))
+        # else:
+        #     loss = (tr.abs(tr.mean(pred-y))-0.5)
+        return loss
 
     loss = supervise(ghu,
         num_epochs = 1200,
         training_example = training_example,
         task = "echov2",
+        episode_len=5,
+        loss_fun = sloss,
         learning_rate = .1,
+        Optimizer = tr.optim.SGD,
         verbose = 1,
-        save_file = "tmp.pkl")
+        save_file = "echov2.pkl")
     
-    with open("tmp.pkl","rb") as f:
+    with open("echov2.pkl","rb") as f:
         config, loss = pk.load(f)
 
     print(config)
