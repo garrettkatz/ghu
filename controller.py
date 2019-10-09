@@ -117,7 +117,7 @@ class SController(nn.Module):
         # h[t,b,:] = hidden layer at time T+t in batch b
         # ad[q][t,b,r] = Pr(choosing incoming r at time t in batch b)
         # pd[t,b,p] = Pr(learning in pathway p at time t in batch b)
-        h, _ = self.rnn(v, h_0) 
+        h, _ = self.rnn(v, h_0)
         ad = {q: self.activity_readouts[q](h) for q in self.layer_sizes}
         pd = self.plasticity_readout(h)
         return ad, pd, h

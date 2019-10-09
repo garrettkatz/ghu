@@ -9,6 +9,7 @@ import torch as tr
 import torch.nn as nn
 from codec import Codec
 from controller import *
+from torch.autograd import Variable
 
 class GatedHebbianUnit(nn.Module):
     def __init__(self, layer_sizes, pathways, controller, codec, batch_size=1, plastic=[]):
@@ -175,11 +176,16 @@ class SGatedHebbianUnit(nn.Module):
             codec = self.codec,
             batch_size = self.batch_size,
             plastic = self.plastic)
+        # ghu.v = {t:
+        #     {q: self.v[t][q].clone().detach() for q in self.layer_sizes.keys()}
+        #     for t in [-1, 0]}
+        # ghu.WL = {p: self.WL[p].clone().detach() for p in self.pathways.keys()}
+        # ghu.WR = {p: self.WR[p].clone().detach() for p in self.pathways.keys()}
         ghu.v = {t:
-            {q: self.v[t][q].clone().detach() for q in self.layer_sizes.keys()}
+            {q: Variable(self.v[t][q].data, requires_grad=True) for q in self.layer_sizes.keys()}
             for t in [-1, 0]}
-        ghu.WL = {p: self.WL[p].clone().detach() for p in self.pathways.keys()}
-        ghu.WR = {p: self.WR[p].clone().detach() for p in self.pathways.keys()}
+        ghu.WL = {p: Variable(self.WL[p].data, requires_grad=True) for p in self.pathways.keys()}
+        ghu.WR = {p: Variable(self.WR[p].data, requires_grad=True) for p in self.pathways.keys()}
         return ghu
 
     def rehebbian(self, WL, WR, x, y):
@@ -198,7 +204,7 @@ class SGatedHebbianUnit(nn.Module):
         # Controller
         adis,pdis, self.h[t] = self.controller.act(
             self.v[t] if not detach else
-                {q: v.clone() for q, v in self.v[t].items()},
+                {q: Variable(v.data, requires_grad=True) for q, v in self.v[t].items()},
             self.h[t-1], choices)
         self.ad[t], self.pd[t] = adis, pdis
         #print(self.v[t])

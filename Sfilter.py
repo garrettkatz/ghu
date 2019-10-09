@@ -62,12 +62,21 @@ if __name__ == "__main__":
                 targets.append("0")
         return inputs, targets
     
-
+    def sloss(pred,y):
+        # if tr.abs(tr.mean(pred-y))<1:
+        #print("pred - y", pred-y)
+        #print("pow", tr.pow(pred-y, 2.0))
+        loss = (tr.mean(tr.pow(pred-y, 2.0)))
+        # else:
+        #     loss = (tr.abs(tr.mean(pred-y))-0.5)
+        return loss
     # Run optimization
     loss = supervise(ghu,
         num_epochs = 5000,
         training_example = training_example,
         task = "filter",
+        episode_len=4,
+        loss_fun = sloss,
         learning_rate = .003,
         Optimizer = tr.optim.ASGD ,
         verbose = 1,
