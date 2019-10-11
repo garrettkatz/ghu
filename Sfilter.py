@@ -77,8 +77,8 @@ if __name__ == "__main__":
         task = "filter",
         episode_len=4,
         loss_fun = sloss,
-        learning_rate = .003,
-        Optimizer = tr.optim.ASGD ,
+        learning_rate = .001,
+        Optimizer = tr.optim.Adam ,
         verbose = 1,
         save_file = "sfilter.pkl")
     

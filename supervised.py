@@ -36,7 +36,7 @@ def supervise(ghu_init, num_epochs, training_example, task, episode_len, loss_fu
         if verbose > 1: print("Running GHU...")
         outputs = []
         #loss = [tr.tensor(0.0, dtype = tr.float32) for _ in range(episode_len)]
-        losss = tr.zeros(episode_len)
+        #losss = tr.zeros(episode_len)
         #print(loss[1])
         for t in range(episode_len):
             if verbose > 1: print(" t=%d..." % t)
@@ -49,20 +49,20 @@ def supervise(ghu_init, num_epochs, training_example, task, episode_len, loss_fu
             if t<len(targets[0]):
                 tars.append([codec.encoder["rout"][targets[b][t]] for b in range(ghu.batch_size)])
             pred1.append([ghu.v[t+1]["rout"][b,:]for b in range(ghu.batch_size)])
-            pred = tr.zeros(ghu.v[t+1]["rout"].shape)
-            tt  = tr.zeros(ghu.v[t+1]["rout"].shape)
-            #print("TTT",tt.shape)
-            for l in range(len(tars[0])):
-                tt[l,:] += tars[0][l]
-                pred[l,:] += pred1[0][l]
-            #print(gradtree(ghu.v[t+1]["rout"][1,:]))
-            for i in range(tt.shape[0]):
+            # pred = tr.zeros(ghu.v[t+1]["rout"].shape)
+            # tt  = tr.zeros(ghu.v[t+1]["rout"].shape)
+            # #print("TTT",tt.shape)
+            # for l in range(len(tars[0])):
+            #     tt[l,:] += tars[0][l]
+            #     pred[l,:] += pred1[0][l]
+            # #print(gradtree(ghu.v[t+1]["rout"][1,:]))
+            # for i in range(tt.shape[0]):
             
-                losss[t] += loss_fun(pred[i],tt[i])
-            losss[t] *= (1/ghu.batch_size)
-            optimizer.zero_grad()
-            losss[t].backward(retain_graph=True)
-            optimizer.step()
+            #     losss[t] += loss_fun(pred[i],tt[i])
+            # losss[t] *= (1/ghu.batch_size)
+            # optimizer.zero_grad()
+            # losss[t].backward(retain_graph=True)
+            # optimizer.step()
             #losss[t] = loss[t]
             #print("AT ",t,loss[t])
             #print("AAAAAA", loss)
@@ -70,14 +70,22 @@ def supervise(ghu_init, num_epochs, training_example, task, episode_len, loss_fu
             outputs.append([
                 codec.decode("rout", ghu.v[t+1]["rout"][b,:])
                 for b in range(ghu.batch_size)])
-        #print("OUT",ghu.v[t+1]["rout"].shape)
+        # print("OUT",ghu.v[t+1]["rout"].shape)
         # print("TARS",len(tars[0]))
-        # pred = tr.zeros(ghu.v[t+1]["rout"].shape)
-        # tt  = tr.zeros(ghu.v[t+1]["rout"].shape)
-        # #print("TTT",tt.shape)
-        # for l in range(len(tars[0])):
-        #     tt[l,:] += tars[0][l]
-        #     pred[l,:] += pred1[0][l]
+        loss = tr.tensor(0.0, dtype=tr.float32)
+        for t in range(episode_len):
+            pred = tr.zeros(ghu.v[t+1]["rout"].shape)
+            tt  = tr.zeros(ghu.v[t+1]["rout"].shape)
+        #print("TTT",tt.shape)
+            for l in range(len(tars[t])):
+                tt[l,:] += tars[t][l]
+                pred[l,:] += pred1[t][l]
+            for i in range(tt.shape[t]):
+            	loss+= loss_fun(pred[i],tt[i])
+            loss *= (1/ghu.batch_size)
+        loss *= (1/episode_len)
+        
+        
         print("pred length",len(tars))
         
         # Rearrange outputs by batch
@@ -96,15 +104,12 @@ def supervise(ghu_init, num_epochs, training_example, task, episode_len, loss_fu
             
 
         #loss *= (1/ghu.batch_size)
-        print("Loss ----------------->>>>> ", losss)
+        print("LOSS ---------------------->> ", loss.data)
         print("********************************************")
-        losscur[epoch]=tr.mean(losss)
-        
-        # optimizer.zero_grad()
-        # for k in loss:
-            
-        #     k.backward()
-        # optimizer.step()
+        losscur[epoch]=loss
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
             
 
         
