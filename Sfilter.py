@@ -72,12 +72,12 @@ if __name__ == "__main__":
         return loss
     # Run optimization
     loss = supervise(ghu,
-        num_epochs = 5000,
+        num_epochs = 100,
         training_example = training_example,
         task = "filter",
         episode_len=4,
         loss_fun = sloss,
-        learning_rate = .001,
+        learning_rate = .1,
         Optimizer = tr.optim.Adam ,
         verbose = 1,
         save_file = "sfilter.pkl")
