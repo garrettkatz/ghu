@@ -74,7 +74,7 @@ def supervise(ghu_init, num_epochs, training_example, task, episode_len, loss_fu
             for l in range(len(tars[t])):
                 tt[l,:] += tars[t][l]
                 pred[l,:] += pred1[t][l]
-            interloss = tr.tensor(0.0, dtype = tr.float32)
+            interloss = tr.tensor(0.0, dtype = tr.float32) #just to see the individual loss for each t
             for i in range(tt.shape[0]):
             	interloss += loss_fun(pred[i],tt[i])
             	loss+= loss_fun(pred[i],tt[i])
@@ -109,7 +109,7 @@ def supervise(ghu_init, num_epochs, training_example, task, episode_len, loss_fu
 
 
         optimizer.zero_grad()
-        loss.backward()
+        loss.backward(retain_graph=True)
         optimizer.step()
         
 

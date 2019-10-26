@@ -68,13 +68,25 @@ if __name__ == "__main__":
         return inputs, targets
 
 
+    def sloss(pred,y):
+        # if tr.abs(tr.mean(pred-y))<1:
+        #print("pred - y", pred-y)
+        #print("pow", tr.pow(pred-y, 2.0))
+        loss = (tr.mean(tr.pow(pred-y, 2.0)))
+        # else:
+        #     loss = (tr.abs(tr.mean(pred-y))-0.5)
+        return loss
+
+
     # Run optimization
     loss = supervise(ghu,
-        num_epochs = 2000,
+        num_epochs = 10000,
         training_example = training_example,
         task = "dsst",
-        learning_rate = .1,
-        Optimizer = tr.optim.SGD ,
+        episode_len=160,
+        loss_fun = sloss,
+        learning_rate = .001,
+        Optimizer = tr.optim.Adam ,
         verbose = 1,
         save_file = "Sdsst.pkl")
     

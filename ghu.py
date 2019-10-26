@@ -182,10 +182,10 @@ class SGatedHebbianUnit(nn.Module):
         # ghu.WL = {p: self.WL[p].clone().detach() for p in self.pathways.keys()}
         # ghu.WR = {p: self.WR[p].clone().detach() for p in self.pathways.keys()}
         ghu.v = {t:
-            {q: Variable(self.v[t][q].data, requires_grad=True) for q in self.layer_sizes.keys()}
+            {q: self.v[t][q] for q in self.layer_sizes.keys()}
             for t in [-1, 0]}
-        ghu.WL = {p: Variable(self.WL[p].data, requires_grad=True) for p in self.pathways.keys()}
-        ghu.WR = {p: Variable(self.WR[p].data, requires_grad=True) for p in self.pathways.keys()}
+        ghu.WL = {p: self.WL[p] for p in self.pathways.keys()}
+        ghu.WR = {p: self.WR[p] for p in self.pathways.keys()}
         return ghu
 
     def rehebbian(self, WL, WR, x, y):
@@ -204,7 +204,7 @@ class SGatedHebbianUnit(nn.Module):
         # Controller
         adis,pdis, self.h[t] = self.controller.act(
             self.v[t] if not detach else
-                {q: Variable(v.data, requires_grad=True) for q, v in self.v[t].items()},
+                {q: v for q, v in self.v[t].items()},
             self.h[t-1], choices)
         self.ad[t], self.pd[t] = adis, pdis
         #print(self.v[t])
@@ -286,6 +286,8 @@ def default_initializer(register_names, symbols):
     associations = [(p,a,a)
         for p in list(pathways.keys())
         for a in symbols]
+
+    #print(associations)
     return pathways, associations
 
 def turing_initializer(register_names, num_addresses):
@@ -301,6 +303,18 @@ def turing_initializer(register_names, num_addresses):
         for k,x in [("inc-m",1), ("dec-m",-1)]
         for a in range(num_addresses)]
 
+    return pathways, associations
+
+def turing_initializer2(register_names, symbols):
+    pathways, associations = default_initializer(["m"] + register_names, symbols)
+
+    # tape shifts
+    pathways.update({k: ("m","m") for k in ["inc-m","dec-m"]})
+    associations += [
+        (k, str(a), str((a+x) % num_addresses))
+        for k,x in [("inc-m",1), ("dec-m",-1)]
+        for a in range(num_addresses)]
+    print(associations)
     return pathways, associations
 
 if __name__ == "__main__":

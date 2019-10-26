@@ -13,7 +13,7 @@ class Codec(nn.Module):
         if ortho:
             
             self.encoder = {}
-            n = max(getsize(len(symbols)),32)
+            #n = max(getsize(len(symbols)),32)
             n = getsize(max(len(symbols),32))
             for k,size in layer_sizes.items():
                 mat = random_orthogonal_patterns(n,len(symbols))

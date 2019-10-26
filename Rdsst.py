@@ -25,9 +25,22 @@ def trials(i, avgrew, gradnorm):
     length = getsize(max(len(symbols),32))
     layer_sizes = {"rinp": length, "rout":length, "rt1":length, "rt2":length}
     pathways, associations = default_initializer( # all to all
-        layer_sizes.keys(), symbols)
+        list(layer_sizes.keys()), symbols)
 
+    #associations= associations + [("rt2<rt1","0","up"),("rt1<rt2","1","left"),("rt2<rout","2","down"),("rt1<rout","3","right")]
     
+    for i in range(len(associations)):
+        associations[i]=list(associations[i])
+        if associations[i][0]=="rt2<rt1" and associations[i][1]=="0":
+            associations[i][2]="left"
+        if associations[i][0]=="rt1<rt2" and associations[i][1]=="1":
+            associations[i][2]="up"
+        if associations[i][0]=="rt2<rout" and associations[i][1]=="2":
+            associations[i][2]="down"
+        if associations[i][0]=="rt1<rout" and associations[i][1]=="3":
+            associations[i][2]="right"
+        associations[i] = tuple(associations[i])
+    #print("NEW associations", associations)
     codec = Codec(layer_sizes, symbols, rho=.999, requires_grad=False,ortho=True)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
 
@@ -45,27 +58,27 @@ def trials(i, avgrew, gradnorm):
             codec.encode(k, separator).view(1,-1),
             num_episodes, dim=0)
 
-    def training_example():
-        actions = ["left","right","up","down"]
+    def training_example(i):
+        #actions = ["left","right","up","down"]
         with open("datadsst.json", "r") as file:
 	        result1 = json.load(file)
-        choice = np.random.randint(1,500)
-        diff = 160 - len(result1[str(choice)][0])
+        #choice = np.random.randint(1,500)
+        diff = 160 - len(result1[str(i)][0])
         if diff!=0:
         	#print("INSIDE")
-        	inp = result1[str(choice)][0]
-        	tar = result1[str(choice)][1]
+        	inp = result1[str(i)][0]
+        	tar = result1[str(i)][1]
         	for k in range(diff):
         		inp.append("&")
         		tar.append("&")
         else:
-            inp = result1[str(choice)][0]
-            tar = result1[str(choice)][1]
-        act = (np.random.choice(actions, size=4, replace=False)).tolist()
+            inp = result1[str(i)][0]
+            tar = result1[str(i)][1]
+        #act = (np.random.choice(actions, size=4, replace=False)).tolist()
         #print("CHECKING",act)
         #inputt = act+inp
-        inputs = np.array(act+inp)   
-        targets = np.array(["&","&","&","&"]+tar)  
+        inputs = np.array(inp) #np.array(act+inp)   
+        targets = np.array(tar) #np.array(["&","&","&","&"]+tar)  
         return inputs, targets
 
     # reward calculation based on individual steps
