@@ -50,13 +50,7 @@ def supervise(ghu_init, num_epochs, training_example, task, episode_len, loss_fu
             if t<len(targets[0]):
                 tars.append([codec.encoder["rout"][targets[b][t]] for b in range(ghu.batch_size)])
             pred1.append([ghu.v[t+1]["rout"][b,:]for b in range(ghu.batch_size)])
-            pred = tr.zeros(ghu.v[t+1]["rout"].shape)
-            tt  = tr.zeros(ghu.v[t+1]["rout"].shape)
-            #print("TTT",tt.shape)
-            for l in range(len(tars[t])):
-                tt[l,:] += tars[t][l]
-                pred[l,:] += pred1[t][l]
-            #print(gradtree(ghu.v[t+1]["rout"][1,:]))
+           
             
             
             outputs.append([
@@ -66,7 +60,7 @@ def supervise(ghu_init, num_epochs, training_example, task, episode_len, loss_fu
             
         # print("OUT",ghu.v[t+1]["rout"].shape)
         # print("TARS",len(tars[0]))
-        loss = tr.tensor(0.0, dtype=tr.float32)
+        loss = tr.zeros(episode_len)
         for t in range(episode_len):
             pred = tr.zeros(ghu.v[t+1]["rout"].shape)
             tt  = tr.zeros(ghu.v[t+1]["rout"].shape)
@@ -77,11 +71,11 @@ def supervise(ghu_init, num_epochs, training_example, task, episode_len, loss_fu
             interloss = tr.tensor(0.0, dtype = tr.float32) #just to see the individual loss for each t
             for i in range(tt.shape[0]):
             	interloss += loss_fun(pred[i],tt[i])
-            	loss+= loss_fun(pred[i],tt[i])
-            loss *= (1/ghu.batch_size)
+            	loss[t]+= loss_fun(pred[i],tt[i])
+            loss[t] *= (1/ghu.batch_size)
             losss[t] = interloss/ghu.batch_size
             #loss += interloss
-        loss *= (1/episode_len)
+        #loss *= (1/episode_len)
         
         
         #print("pred length",len(tars))
@@ -105,11 +99,11 @@ def supervise(ghu_init, num_epochs, training_example, task, episode_len, loss_fu
         print("LOSS ---------------------->> ", loss)
         print("Loss at corresponding to each t", losss)
         print("********************************************")
-        losscur[epoch]=loss
+        losscur[epoch]=tr.mean(loss)
 
 
         optimizer.zero_grad()
-        loss.backward(retain_graph=True)
+        tr.sum(loss).backward(retain_graph=True)
         optimizer.step()
         
 
