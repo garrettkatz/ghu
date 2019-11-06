@@ -27,7 +27,7 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
 
         # Get random examples
         if verbose > 1: print("Sampling problem instances...")
-        inputs, targets = zip(*[training_example(b) for b in range(ghu.batch_size)])
+        inputs, targets = zip(*[training_example() for b in range(ghu.batch_size)])
 
         # Run GHU
         if verbose > 1: print("Running GHU...")

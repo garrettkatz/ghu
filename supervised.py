@@ -11,7 +11,7 @@ def supervise(ghu_init, num_epochs, training_example, task, episode_len, loss_fu
     # reward: function of ghu, target/actual output
     #parameters = [ghu_init.v,ghu_init.h, ghu_init.WL, ghu_init.WR, ghu_init.controller,ghu_init.codec]
     print("Optimizer "+str(Optimizer)+"learning_rate "+str(learning_rate))
-    optimizer = Optimizer(ghu_init.controller.parameters(), lr=learning_rate)
+    optimizer = [Optimizer(ghu_init.controller.parameters(), lr=learning_rate) for _ in  range(episode_len)]
     controller = ghu_init.controller
     codec = ghu_init.codec
 
@@ -37,6 +37,7 @@ def supervise(ghu_init, num_epochs, training_example, task, episode_len, loss_fu
         outputs = []
         #loss = [tr.tensor(0.0, dtype = tr.float32) for _ in range(episode_len)]
         losss = tr.zeros(episode_len)
+        loss = tr.zeros(episode_len)
         #print(loss[1])
         for t in range(episode_len):
             
@@ -51,31 +52,43 @@ def supervise(ghu_init, num_epochs, training_example, task, episode_len, loss_fu
                 tars.append([codec.encoder["rout"][targets[b][t]] for b in range(ghu.batch_size)])
             pred1.append([ghu.v[t+1]["rout"][b,:]for b in range(ghu.batch_size)])
            
-            
-            
             outputs.append([
                 codec.decode("rout", ghu.v[t+1]["rout"][b,:])
                 for b in range(ghu.batch_size)])
-           
-            
-        # print("OUT",ghu.v[t+1]["rout"].shape)
-        # print("TARS",len(tars[0]))
-        loss = tr.zeros(episode_len)
-        for t in range(episode_len):
             pred = tr.zeros(ghu.v[t+1]["rout"].shape)
             tt  = tr.zeros(ghu.v[t+1]["rout"].shape)
-        #print("TTT",tt.shape)
             for l in range(len(tars[t])):
                 tt[l,:] += tars[t][l]
                 pred[l,:] += pred1[t][l]
-            interloss = tr.tensor(0.0, dtype = tr.float32) #just to see the individual loss for each t
+            #losss[t] = loss_fun()
             for i in range(tt.shape[0]):
-            	interloss += loss_fun(pred[i],tt[i])
-            	loss[t]+= loss_fun(pred[i],tt[i])
-            loss[t] *= (1/ghu.batch_size)
-            losss[t] = interloss/ghu.batch_size
-            #loss += interloss
-        #loss *= (1/episode_len)
+            	#interloss += loss_fun(pred[i],tt[i])
+            	losss[t]+= loss_fun(pred[i],tt[i])
+            losss[t] *= (1/ghu.batch_size)
+            loss[t] = losss[t]
+            optimizer[t].zero_grad()
+            losss[t].backward(retain_graph=True)
+            optimizer[t].step()
+           
+            
+        # # print("OUT",ghu.v[t+1]["rout"].shape)
+        # # print("TARS",len(tars[0]))
+        # loss = tr.zeros(episode_len)
+        # for t in range(episode_len):
+        #     pred = tr.zeros(ghu.v[t+1]["rout"].shape)
+        #     tt  = tr.zeros(ghu.v[t+1]["rout"].shape)
+        # #print("TTT",tt.shape)
+        #     for l in range(len(tars[t])):
+        #         tt[l,:] += tars[t][l]
+        #         pred[l,:] += pred1[t][l]
+        #     interloss = tr.tensor(0.0, dtype = tr.float32) #just to see the individual loss for each t
+        #     for i in range(tt.shape[0]):
+        #     	interloss += loss_fun(pred[i],tt[i])
+        #     	loss[t]+= loss_fun(pred[i],tt[i])
+        #     loss[t] *= (1/ghu.batch_size)
+        #     losss[t] = interloss/ghu.batch_size
+        #     #loss += interloss
+        # #loss *= (1/episode_len)
         
         
         #print("pred length",len(tars))
@@ -97,14 +110,14 @@ def supervise(ghu_init, num_epochs, training_example, task, episode_len, loss_fu
 
         #loss *= (1/ghu.batch_size)
         print("LOSS ---------------------->> ", loss)
-        print("Loss at corresponding to each t", losss)
+        #print("Loss at corresponding to each t", losss)
         print("********************************************")
         losscur[epoch]=tr.mean(loss)
 
 
-        optimizer.zero_grad()
-        tr.sum(loss).backward(retain_graph=True)
-        optimizer.step()
+        # optimizer.zero_grad()
+        # loss.mean().backward(retain_graph=True)
+        # optimizer.step()
         
 
         
