@@ -23,23 +23,23 @@ def trials(i, avgrew, gradnorm):
 
     symbols = ["up","left","down","right","_","+","&"] + letters + digits
     length = getsize(max(len(symbols),32))
-    layer_sizes = {"rinp": length, "rout":length, "rt1":length, "rt2":length}
-    pathways, associations = default_initializer( # all to all
+    layer_sizes = {"rinp": length, "rout":length, "rt1":length, "rt2":length, "m":length } #, "rt3":length, "rt4":length, "rt5":length, "rt6":length,  }
+    pathways, associations = turing_initializer2( # all to all
         list(layer_sizes.keys()), symbols)
 
     #associations= associations + [("rt2<rt1","0","up"),("rt1<rt2","1","left"),("rt2<rout","2","down"),("rt1<rout","3","right")]
     
-    for i in range(len(associations)):
-        associations[i]=list(associations[i])
-        if associations[i][0]=="rt2<rt1" and associations[i][1]=="0":
-            associations[i][2]="left"
-        if associations[i][0]=="rt1<rt2" and associations[i][1]=="1":
-            associations[i][2]="up"
-        if associations[i][0]=="rt2<rout" and associations[i][1]=="2":
-            associations[i][2]="down"
-        if associations[i][0]=="rt1<rout" and associations[i][1]=="3":
-            associations[i][2]="right"
-        associations[i] = tuple(associations[i])
+    # for i in range(len(associations)):
+    #     associations[i]=list(associations[i])
+    #     if associations[i][0]=="rt2<rt1" and associations[i][1]=="0":
+    #         associations[i][2]="left"
+    #     if associations[i][0]=="rt1<rt2" and associations[i][1]=="1":
+    #         associations[i][2]="up"
+    #     if associations[i][0]=="rt2<rout" and associations[i][1]=="2":
+    #         associations[i][2]="down"
+    #     if associations[i][0]=="rt1<rout" and associations[i][1]=="3":
+    #         associations[i][2]="right"
+    #     associations[i] = tuple(associations[i])
     #print("NEW associations", associations)
     codec = Codec(layer_sizes, symbols, rho=.999, requires_grad=False,ortho=True)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)

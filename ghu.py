@@ -311,10 +311,11 @@ def turing_initializer2(register_names, symbols):
     # tape shifts
     pathways.update({k: ("m","m") for k in ["inc-m","dec-m"]})
     associations += [
-        (k, str(a), str((a+x) % num_addresses))
+        (k, symbols[a], symbols[(a+x) % len(symbols)])
         for k,x in [("inc-m",1), ("dec-m",-1)]
-        for a in range(num_addresses)]
-    print(associations)
+        for a in range(len(symbols))]
+    #print(pathways)
+    #print(associations)
     return pathways, associations
 
 if __name__ == "__main__":
