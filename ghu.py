@@ -66,11 +66,12 @@ class GatedHebbianUnit(object):
         # return WL, WR
         return dWL, dWR
 
-    def tick(self, detach=True, choices=None):
+    def tick(self, detach=True, choices=None, verbose=0):
         # choices passed to controller
         t = len(self.al)
 
         # Controller
+        if verbose > 0: print("  Controller forward pass...")
         _, choices, likelihoods, self.h[t] = self.controller.act(
             self.v[t] if not detach else
                 {q: v.clone().detach() for q, v in self.v[t].items()},
@@ -79,24 +80,27 @@ class GatedHebbianUnit(object):
         self.al[t], self.pl[t] = likelihoods
 
         # Associative recall
+        if verbose > 0: print("  Associative recall...")
         self.v[t+1] = {}
+        WL, WR, v = {}, {}, {}
+        if verbose > 1: print("   Selecting pathways for batch matmul...")
         for q in self.layer_sizes.keys():
-
             # Select out p,r for each batch element to prepare the batch matmul
-            WL_q, WR_q, v_q = [], [], []
+            WL[q], WR[q], v[q] = [], [], []
             for b,i in enumerate(self.ac[t][q][0]):
                 p = self.controller.incoming[q][i]
                 _, r = self.pathways[p]
-                WL_q.append(self.WL[p][b])
-                WR_q.append(self.WR[p][b])
-                v_q.append(self.v[t][r][b,:])
-            tr.stack(WL_q)
-            tr.stack(WR_q)
-            WL_q, WR_q, v_q = tr.stack(WL_q), tr.stack(WR_q), tr.stack(v_q)
+                WL[q].append(self.WL[p][b])
+                WR[q].append(self.WR[p][b])
+                v[q].append(self.v[t][r][b,:])
+        if verbose > 1: print("   Stacking and performing matmul...")
+        for q in self.layer_sizes.keys():
+            WL[q], WR[q], v[q] = tr.stack(WL[q]), tr.stack(WR[q]), tr.stack(v[q])
             self.v[t+1][q] = tr.tanh(
-                tr.matmul(WL_q, tr.matmul(WR_q, v_q.unsqueeze(2)))).squeeze(2)
+                tr.matmul(WL[q], tr.matmul(WR[q], v[q].unsqueeze(2)))).squeeze(2)
 
         # Associative learning
+        if verbose > 0: print("  Associative learning...")
         for p in self.pathways.keys():
             q, r = self.pathways[p]
             dWL = tr.zeros(self.batch_size, self.layer_sizes[q], 1)

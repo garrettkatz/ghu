@@ -15,17 +15,17 @@ def echo_trial(episode_duration, save_file):
 
     # Configuration
     num_symbols = 3
-    layer_sizes = {"rinp": 64, "rout":64}
+    layer_sizes = {"rinp": 32, "rout":32}
     hidden_size = 16
     rho = .99
     plastic = []
-    num_episodes = 200
+    num_episodes = 500
 
     # Setup GHU
     symbols = [str(a) for a in range(num_symbols)]
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
-    codec = Codec(layer_sizes, symbols, rho=rho)
+    codec = Codec(layer_sizes, symbols, rho=rho, ortho=True)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
     ghu = GatedHebbianUnit(
         layer_sizes, pathways, controller, codec,
@@ -58,13 +58,13 @@ def echo_trial(episode_duration, save_file):
 
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 100,
+        num_epochs = 55,
         episode_duration = episode_duration,
         training_example = training_example,
         reward = reward,
         task = "echo",
         learning_rate = .1,
-        verbose = 1,
+        verbose = 3,
         save_file = save_file)
     
     return avg_rewards, grad_norms
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     print("*******************************************************")
 
     durations = range(1,6)
-    num_reps = 30
+    num_reps = 5
     
     # Run the experiment
     for dur in durations:

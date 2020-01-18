@@ -14,8 +14,8 @@ def reverse_trial(num_episodes, save_file):
 
     # Configuration
     register_names = ["rinp","rout"]
-    layer_sizes = {q: 256 for q in register_names + ["m"]}
-    hidden_size = 64
+    layer_sizes = {q: 8 for q in register_names + ["m"]}
+    hidden_size = 32
     rho = .99
     plastic = ["rinp<m"]
     remove_pathways = ["rinp<rout", "m<rinp", "m<rout", "rout<m"]
@@ -27,7 +27,7 @@ def reverse_trial(num_episodes, save_file):
         register_names, num_addresses)
     for p in remove_pathways: pathways.pop(p)
     associations = list(filter(lambda x: x[0] not in remove_pathways, associations))
-    codec = Codec(layer_sizes, symbols, rho=rho)
+    codec = Codec(layer_sizes, symbols, rho=rho, ortho=True)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic, nonlinearity='relu')
     # controller = Controller(layer_sizes, pathways, hidden_size, plastic, nonlinearity='tanh')
     ghu = GatedHebbianUnit(
@@ -49,7 +49,8 @@ def reverse_trial(num_episodes, save_file):
     episode_duration = 2*max_length
     def training_example():
         list_length = np.random.randint(min_length, max_length+1)
-        inputs = np.random.choice(symbols[1:list_symbols], size=list_length, replace=True)
+        # inputs = np.random.choice(symbols[1:list_symbols], size=list_length, replace=True)
+        inputs = np.random.choice(symbols[1:list_symbols], size=list_length, replace=False)
         targets = inputs[::-1]
         return inputs, targets
     
@@ -65,24 +66,24 @@ def reverse_trial(num_episodes, save_file):
             
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 1000,
+        num_epochs = 100,
         episode_duration = episode_duration,
         training_example = training_example,
         reward = reward,
         task = "reverse",
-        learning_rate = .05,
+        learning_rate = 1.,
         # line_search_iterations = 5,
         # distribution_cap = .1,
         # likelihood_cap = .7,
-        distribution_variance_coefficient = 0.05,
-        verbose = 1,
+        # distribution_variance_coefficient = 0.05,
+        verbose = 2,
         save_file = save_file)
 
 if __name__ == "__main__":
     print("*******************************************************")
     
     num_reps = 5
-    num_episodes = 2000
+    num_episodes = 16000
     
     # Run the experiment
     for rep in range(num_reps):

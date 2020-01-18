@@ -15,7 +15,7 @@ def swap_trial(distribution_variance_coefficient, save_file):
 
     # Configuration
     num_symbols = 4
-    layer_sizes = {"rinp": 64, "rout":64, "rtmp": 64}
+    layer_sizes = {"rinp": 16, "rout":16, "rtmp": 16}
     hidden_size = 32
     rho = .99
     plastic = []
@@ -25,7 +25,7 @@ def swap_trial(distribution_variance_coefficient, save_file):
     symbols = [str(a) for a in range(num_symbols)]
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
-    codec = Codec(layer_sizes, symbols, rho=rho)
+    codec = Codec(layer_sizes, symbols, rho=rho, ortho=True)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
     ghu = GatedHebbianUnit(
         layer_sizes, pathways, controller, codec,
@@ -50,20 +50,25 @@ def swap_trial(distribution_variance_coefficient, save_file):
     def reward(ghu, targets, outputs):
         idx = [i for i, out in enumerate(outputs) if out != separator]
         outputs_ = [out for out in outputs if out != separator]
-        _, d = lvd(outputs_, targets)
+        dmn, d = lvd(outputs_, targets)
         r = np.zeros(len(outputs))
-        for i in range(1,d.shape[0]):
-            r[idx[i-1]] = +1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
+        
+        # for i in range(1,d.shape[0]):
+        #     r[idx[i-1]] = +1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
+
+        # All or nothing
+        r[-1] = (dmn == 0)
+
         return r
             
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 100,
+        num_epochs = 70,
         episode_duration = 3,
         training_example = training_example,
         reward = reward,
         task = "swap",
-        learning_rate = .2,
+        learning_rate = .1,
         # line_search_iterations = 5,
         # distribution_cap = .1,
         # likelihood_cap = .7,
@@ -74,10 +79,11 @@ def swap_trial(distribution_variance_coefficient, save_file):
 if __name__ == "__main__":
     print("*******************************************************")
     
+    dvcs = [0.]
     # dvcs = [0., 0.001, 0.01, 0.1, 1.]
     # dvcs = [.0005, 0.005, 0.05, 0.5]
-    dvcs = [0., .0005, 0.001, .005, 0.01, .05, 0.1, .5, 1.]
-    num_reps = 30
+    # dvcs = [0., .0005, 0.001, .005, 0.01, .05, 0.1, .5, 1.]
+    num_reps = 5
     
     # Run the experiment
     for dvc in dvcs:
@@ -86,7 +92,7 @@ if __name__ == "__main__":
             swap_trial(dvc, save_file)
 
     # Load results
-    dvcs = [0., .0005, 0.001, .005, 0.01, .05, 0.1, .5, 1.]
+    # dvcs = [0., .0005, 0.001, .005, 0.01, .05, 0.1, .5, 1.]
     results = {}
     for dvc in dvcs:
         results[dvc] = {}
@@ -98,7 +104,8 @@ if __name__ == "__main__":
     # Plot results
     pt.figure(figsize=(4.25,1.85))
     bg = (.9,.9,.9) # background color
-    dvcs_sub = [0., 0.01, 1.]
+    # dvcs_sub = [0., 0.01, 1.]
+    dvcs_sub = dvcs[:3]
     for d,dvc in enumerate(dvcs_sub):
         avg_rewards = np.array([results[dvc][rep][1]
             for rep in results[dvc].keys()]).T

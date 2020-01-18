@@ -12,10 +12,13 @@ class Codec(object):
         if ortho:
             
             self.encoder = {}
-            n = getsize(max(len(symbols),32))
+            # n = getsize(max(len(symbols),32))
             for k,size in layer_sizes.items():
-                mat = random_orthogonal_patterns(n,len(symbols))
-                temp = { k: {symbols[s]: tr.tensor(rho * mat[:,s].astype(np.float32),requires_grad=requires_grad)for s in range(len(symbols))}}
+                # mat = random_orthogonal_patterns(n,len(symbols))
+                mat = random_orthogonal_patterns(size,len(symbols))
+                temp = { k: {
+                    symbols[s]: tr.tensor(rho * mat[:,s].astype(np.float32),requires_grad=requires_grad)
+                    for s in range(len(symbols))}}
                 self.encoder.update(temp)
         else:
             self.encoder = { k: {
