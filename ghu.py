@@ -83,19 +83,38 @@ class GatedHebbianUnit(object):
         if verbose > 0: print("  Associative recall...")
         self.v[t+1] = {}
         WL, WR, v = {}, {}, {}
+
+        # if verbose > 1: print("   Selecting pathways for batch matmul...")
+        # for q in self.layer_sizes.keys():
+        #     # Select out p,r for each batch element to prepare the batch matmul
+        #     WL[q], WR[q], v[q] = [], [], []
+        #     for b,i in enumerate(self.ac[t][q][0]):
+        #         p = self.controller.incoming[q][i]
+        #         _, r = self.pathways[p]
+        #         WL[q].append(self.WL[p][b])
+        #         WR[q].append(self.WR[p][b])
+        #         v[q].append(self.v[t][r][b,:])
+        # if verbose > 1: print("   Stacking and performing matmul...")
+        # for q in self.layer_sizes.keys():
+        #     WL[q], WR[q], v[q] = tr.stack(WL[q]), tr.stack(WR[q]), tr.stack(v[q])
+        #     self.v[t+1][q] = tr.tanh(
+        #         tr.matmul(WL[q], tr.matmul(WR[q], v[q].unsqueeze(2)))).squeeze(2)
+
         if verbose > 1: print("   Selecting pathways for batch matmul...")
         for q in self.layer_sizes.keys():
-            # Select out p,r for each batch element to prepare the batch matmul
-            WL[q], WR[q], v[q] = [], [], []
-            for b,i in enumerate(self.ac[t][q][0]):
-                p = self.controller.incoming[q][i]
-                _, r = self.pathways[p]
-                WL[q].append(self.WL[p][b])
-                WR[q].append(self.WR[p][b])
-                v[q].append(self.v[t][r][b,:])
+            # Process all possible incoming pathways
+            p0 = self.controller.incoming[q][0]
+            _, r0 = self.pathways[p0]
+            WL[q] = tr.zeros(self.WL[p0].shape)
+            WR[q] = tr.zeros(self.WR[p0].shape)
+            v[q] = tr.zeros(self.v[t][r0].shape)
+            for i, p in enumerate(self.controller.incoming[q]):
+                _, r = self.pathways[p] # source layer
+                b = (self.ac[t][q][0] == i).squeeze() # mask of batches where pathway p was selected
+                WL[q][b], WR[q][b] = self.WL[p][b], self.WR[p][b]
+                v[q][b,:] = self.v[t][r][b,:]
         if verbose > 1: print("   Stacking and performing matmul...")
         for q in self.layer_sizes.keys():
-            WL[q], WR[q], v[q] = tr.stack(WL[q]), tr.stack(WR[q]), tr.stack(v[q])
             self.v[t+1][q] = tr.tanh(
                 tr.matmul(WL[q], tr.matmul(WR[q], v[q].unsqueeze(2)))).squeeze(2)
 

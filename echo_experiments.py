@@ -64,7 +64,7 @@ def echo_trial(episode_duration, save_file):
         reward = reward,
         task = "echo",
         learning_rate = .1,
-        verbose = 3,
+        verbose = 1,
         save_file = save_file)
     
     return avg_rewards, grad_norms

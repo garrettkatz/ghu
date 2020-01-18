@@ -76,7 +76,7 @@ def reverse_trial(num_episodes, save_file):
         # distribution_cap = .1,
         # likelihood_cap = .7,
         # distribution_variance_coefficient = 0.05,
-        verbose = 2,
+        verbose = 1,
         save_file = save_file)
 
 if __name__ == "__main__":
