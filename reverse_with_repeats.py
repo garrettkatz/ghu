@@ -71,7 +71,7 @@ def reverse_trial(num_episodes, save_file):
         training_example = training_example,
         reward = reward,
         task = "reverse",
-        learning_rate = 1.,
+        learning_rate = .01,
         # line_search_iterations = 5,
         # distribution_cap = .1,
         # likelihood_cap = .7,
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     print("*******************************************************")
     
     num_reps = 5
-    num_episodes = 16000
+    num_episodes = 5000 #16000
     
     # Run the experiment
     for rep in range(num_reps):

@@ -67,11 +67,11 @@ class GatedHebbianUnit(object):
         return dWL, dWR
 
     def tick(self, detach=True, choices=None, verbose=0):
-        # choices passed to controller
-        t = len(self.al)
+        # if provided, choices get passed to controller
 
         # Controller
         if verbose > 0: print("  Controller forward pass...")
+        t = len(self.al)
         _, choices, likelihoods, self.h[t] = self.controller.act(
             self.v[t] if not detach else
                 {q: v.clone().detach() for q, v in self.v[t].items()},
@@ -82,41 +82,31 @@ class GatedHebbianUnit(object):
         # Associative recall
         if verbose > 0: print("  Associative recall...")
         self.v[t+1] = {}
-        WL, WR, v = {}, {}, {}
-
-        # if verbose > 1: print("   Selecting pathways for batch matmul...")
-        # for q in self.layer_sizes.keys():
-        #     # Select out p,r for each batch element to prepare the batch matmul
-        #     WL[q], WR[q], v[q] = [], [], []
-        #     for b,i in enumerate(self.ac[t][q][0]):
-        #         p = self.controller.incoming[q][i]
-        #         _, r = self.pathways[p]
-        #         WL[q].append(self.WL[p][b])
-        #         WR[q].append(self.WR[p][b])
-        #         v[q].append(self.v[t][r][b,:])
-        # if verbose > 1: print("   Stacking and performing matmul...")
-        # for q in self.layer_sizes.keys():
-        #     WL[q], WR[q], v[q] = tr.stack(WL[q]), tr.stack(WR[q]), tr.stack(v[q])
-        #     self.v[t+1][q] = tr.tanh(
-        #         tr.matmul(WL[q], tr.matmul(WR[q], v[q].unsqueeze(2)))).squeeze(2)
-
+        WL, WR, rv = {}, {}, {} # accumulate data from different gate choices in different episodes
         if verbose > 1: print("   Selecting pathways for batch matmul...")
-        for q in self.layer_sizes.keys():
+        for q, qsz in self.layer_sizes.items():
+            # Get largest number of updates to an incoming pathway to layer q
+            qt = max([self.WL[p].shape[-1] for p in self.controller.incoming[q]])
+            # Get largest source layer size in the pathways to layer q
+            rsz = max([self.layer_sizes[self.pathways[p][1]] for p in self.controller.incoming[q]])
+            # Init sufficiently large pathway and source layer tensors
+            WL[q] = tr.zeros(self.batch_size, qsz, qt)
+            WR[q] = tr.zeros(self.batch_size, qt, rsz)
+            rv[q] = tr.zeros(self.batch_size, rsz)
             # Process all possible incoming pathways
-            p0 = self.controller.incoming[q][0]
-            _, r0 = self.pathways[p0]
-            WL[q] = tr.zeros(self.WL[p0].shape)
-            WR[q] = tr.zeros(self.WR[p0].shape)
-            v[q] = tr.zeros(self.v[t][r0].shape)
             for i, p in enumerate(self.controller.incoming[q]):
+                # Get source layer and number of weight updates to current pathway
                 _, r = self.pathways[p] # source layer
-                b = (self.ac[t][q][0] == i).squeeze() # mask of batches where pathway p was selected
-                WL[q][b], WR[q][b] = self.WL[p][b], self.WR[p][b]
-                v[q][b,:] = self.v[t][r][b,:]
-        if verbose > 1: print("   Stacking and performing matmul...")
+                pt = self.WL[p].shape[-1] # number of updates
+                # Get mask of episodes where current pathway was ungated
+                b = (self.ac[t][q][0] == i).squeeze()
+                # Store weights and source activity from respective episodes
+                WL[q][b, :, :pt], WR[q][b, :pt, :] = self.WL[p][b], self.WR[p][b]
+                rv[q][b, :self.layer_sizes[r]] = self.v[t][r][b]
+        if verbose > 1: print("   Performing matmul...")
         for q in self.layer_sizes.keys():
             self.v[t+1][q] = tr.tanh(
-                tr.matmul(WL[q], tr.matmul(WR[q], v[q].unsqueeze(2)))).squeeze(2)
+                tr.matmul(WL[q], tr.matmul(WR[q], rv[q].unsqueeze(2)))).squeeze(2)
 
         # Associative learning
         if verbose > 0: print("  Associative learning...")
