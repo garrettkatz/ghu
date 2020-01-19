@@ -15,11 +15,13 @@ def reverse_trial(num_episodes, save_file):
 
     # Configuration
     register_names = ["rinp","rout"]
-    layer_sizes = {q: 4 for q in register_names + ["m"]}
-    hidden_size = 32
+    layer_sizes = {q: 64 for q in register_names + ["m"]}
+    hidden_size = 64
     rho = .99
     plastic = ["rinp<m"]
     remove_pathways = ["rinp<rout", "m<rinp", "m<rout", "rout<m"]
+    # input_keys = ["m"]
+    input_keys = None
 
     # Setup GHU
     num_addresses = 4
@@ -29,7 +31,8 @@ def reverse_trial(num_episodes, save_file):
     for p in remove_pathways: pathways.pop(p)
     associations = list(filter(lambda x: x[0] not in remove_pathways, associations))
     codec = Codec(layer_sizes, symbols, rho=rho, ortho=True)
-    controller = Controller(layer_sizes, pathways, hidden_size, plastic, nonlinearity='relu')
+    controller = Controller(layer_sizes, pathways, hidden_size, plastic,
+        input_keys=input_keys, nonlinearity='relu')
     # controller = Controller(layer_sizes, pathways, hidden_size, plastic, nonlinearity='tanh')
     ghu = GatedHebbianUnit(
         layer_sizes, pathways, controller, codec,
@@ -48,8 +51,8 @@ def reverse_trial(num_episodes, save_file):
     def training_example():
         list_length = np.random.randint(min_length, max_length+1)
         inputs = np.array(["0"]*(list_length+1))
-        # inputs = np.random.choice(symbols[1:list_symbols], size=list_length, replace=True)
-        inputs[1:] = np.random.choice(symbols[1:list_symbols], size=list_length, replace=False)
+        # inputs[1:] = np.random.choice(symbols[1:list_symbols], size=list_length, replace=False)
+        inputs[1:] = np.random.choice(symbols[1:list_symbols], size=list_length, replace=True)
         targets = inputs[1:][::-1]
         return inputs, targets
     
@@ -58,7 +61,7 @@ def reverse_trial(num_episodes, save_file):
         r = np.zeros(len(outputs))
         
         # All or nothing
-        outputs_ = outputs[len(targets):]
+        outputs_ = outputs[-len(targets):]
         if lvd(outputs_, targets)[0] == 0: r[-1] = +1.
         
         return r
@@ -76,16 +79,16 @@ def reverse_trial(num_episodes, save_file):
 
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 400,
+        num_epochs = 500,
         episode_duration = episode_duration,
         training_example = training_example,
         reward = reward,
         task = "reverse",
-        learning_rate = 1.,
+        learning_rate = .1,
         # line_search_iterations = 5,
         # distribution_cap = .1,
         # likelihood_cap = .7,
-        # distribution_variance_coefficient = 0.05,
+        distribution_variance_coefficient = 0.05,
         # choices = correct_choices, # perfect reward with this
         verbose = 1,
         save_file = save_file)
@@ -93,8 +96,8 @@ def reverse_trial(num_episodes, save_file):
 if __name__ == "__main__":
     print("*******************************************************")
     
-    num_reps = 5
-    num_episodes = 50000
+    num_reps = 10
+    num_episodes = 8000
     
     # Run the experiment
     for rep in range(num_reps):
