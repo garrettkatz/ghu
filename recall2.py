@@ -39,13 +39,7 @@ def trials(i, avgrew, gradnorm):
     
     # Initialize layers
     separator = "0"
-    for k in layer_sizes.keys():
-        # ghu_init.v[0][k] = codec.encode(k, separator) # !! no good anymore
-        # !! Now we have to repeat the separator for each episode in the batch
-        # !! v[t][k][e,:] is time t, layer k activity for episode e
-        ghu.v[0][k] = tr.repeat_interleave(
-            codec.encode(k, separator).view(1,-1),
-            num_episodes, dim=0)
+    ghu.fill_layers(separator)
 
     def training_example():
         # Randomly choose echo symbol (excluding 0 separator)

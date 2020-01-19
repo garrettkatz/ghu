@@ -132,8 +132,7 @@ if __name__ == "__main__":
                     ghus.append(ghu)
         
                     # Initialize layers
-                    for k in layer_sizes.keys():
-                        ghu.v[0][k] = codec.encode(k, separator)
+                    ghu.fill_layers(separator)
         
                     # Run GHU
                     if verbose > 1 and episode < 5: print("Running GHU...")

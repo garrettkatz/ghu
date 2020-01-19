@@ -34,10 +34,7 @@ def swap_trial(distribution_variance_coefficient, save_file):
 
     # Initialize layers
     separator = "0"
-    for k in layer_sizes.keys():
-        ghu.v[0][k] = tr.repeat_interleave(
-            codec.encode(k, separator).view(1,-1),
-            num_episodes, dim=0)
+    ghu.fill_layers(separator)
 
     # training example generation
     def training_example():

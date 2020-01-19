@@ -5,10 +5,17 @@ from controller import get_likelihoods
 
 def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, task,
     learning_rate=0.1, line_search_iterations=0, distribution_cap=1., likelihood_cap=1.,
-    distribution_variance_coefficient=0., verbose=3, save_file=None):
+    distribution_variance_coefficient=0., verbose=3, choices=None, save_file=None):
     # ghu_init: initial ghu cloned for each episode
     # training_example: function that produces an example
     # reward: function of ghu, target/actual output
+
+    if choices is not None: choices = [(
+        {q: tr.stack([
+            tr.tensor([ghu_init.controller.incoming[q].index(p)])
+            for b in range(ghu_init.batch_size)]).reshape(1,ghu_init.batch_size,1) for q,p in ac.items()},
+        tr.stack([tr.tensor(pc) for b in range(ghu_init.batch_size)]).reshape(1,ghu_init.batch_size,1))
+        for (ac, pc) in choices]
 
     controller = ghu_init.controller
     codec = ghu_init.codec
@@ -43,7 +50,9 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
         for t in range(episode_duration):
             if verbose > 1: print(" t=%d..." % t)
             if t < len(inputs[0]): ghu.v[t]["rinp"] = encoded[t]
-            ghu.tick(verbose=verbose-1) # Take a step
+            # Take a step
+            if choices is not None: ghu.tick(choices=choices[t], verbose=verbose-1)
+            else: ghu.tick(verbose=verbose-1)
 
         if verbose > 1: print("Decoding outputs...")
         outputs = []
@@ -75,15 +84,18 @@ def reinforce(ghu_init, num_epochs, episode_duration, training_example, reward, 
             if b >= 5:
                 print(" Epoch %d, episode %d: task: %s %s -> %s vs %s, R=%f" % (
                     epoch, b, task, list(inputs[b]), list(outputs[b]), list(targets[b]), R[b]))
-                # if verbose > 2:
-                #     for t in range(episode_duration+1):
-                #         print(" Step %d, reward = %f" % (t, 0 if t==0 else rewards[b,t-1]))
-                #         print(" layers: ",
-                #             {k: codec.decode(k, ghu.v[t][k][b]) for k in ghu.layer_sizes.keys()})
-                #         if t == episode_duration: break
-                #         print(" likelihoods: ",
-                #             {q: al[0,b].item() for q,al in ghu.al[t].items()},
-                #             [pl[b].item() for pl in ghu.pl[t] if len(ghu.plastic) > 0])
+            if (b >= 5 and verbose > 3) or (verbose > 4):
+                for t in range(episode_duration+1):
+                    print(" Step %d, reward = %f" % (t, 0 if t==0 else rewards[b,t-1]))
+                    print(" layers: ",
+                        {k: codec.decode(k, ghu.v[t][k][b]) for k in ghu.layer_sizes.keys()})
+                    if t == episode_duration: break
+                    print(" choices: ",
+                        {q: ghu.controller.incoming[q][ac[0,b].item()] for q,ac in ghu.ac[t].items()},
+                        [pc[b].item() for pc in ghu.pc[t] if len(ghu.plastic) > 0])
+                    print(" likelihoods: ",
+                        {q: "%.3f" % al[0,b].item() for q,al in ghu.al[t].items()},
+                        ["%.3f" % pl[b].item() for pl in ghu.pl[t] if len(ghu.plastic) > 0])
 
         # Compute baselined rewards-to-go
         rewards_to_go = rewards.sum(axis=1)[:,np.newaxis] - rewards.cumsum(axis=1) + rewards

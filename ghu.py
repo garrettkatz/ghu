@@ -144,6 +144,41 @@ class GatedHebbianUnit(object):
             Wv = tr.matmul(self.WL[p][0], tr.matmul(self.WR[p][0], self.codec.encode(r, s).view(-1,1)))
             assert(self.codec.decode(q, Wv.squeeze()) == t)
 
+    def fill_layers(self, symbol):
+        for t in self.v:
+            for k in self.layer_sizes.keys():
+                self.v[t][k] = tr.repeat_interleave(
+                    self.codec.encode(k, symbol).view(1,-1),
+                    self.batch_size, dim=0)
+    
+    def dbg_run(self, inputs, episode_duration, choices):
+        choices = [(
+            {q: tr.stack([
+                tr.tensor([self.controller.incoming[q].index(p)])
+                for b in range(self.batch_size)]).reshape(1,self.batch_size,1) for q,p in ac.items()},
+            tr.stack([tr.tensor(pc) for b in range(self.batch_size)]).reshape(1,self.batch_size,1))
+            for (ac, pc) in choices]
+        encoded = {}
+        for t in range(episode_duration):
+            if t < len(inputs[0]):
+                encoded[t] = tr.stack([
+                    self.codec.encode("rinp", inputs[0][t])
+                    for b in range(self.batch_size)])
+        for t in range(episode_duration):
+            print(" t=%d..." % t)
+            if t < len(inputs[0]): self.v[t]["rinp"] = encoded[t]
+            self.tick(choices=choices[t], verbose=0) # Take a step
+        for t in range(episode_duration+1):
+            print(" Step %d" % t)
+            print(" layers: ",
+                {k: self.codec.decode(k, self.v[t][k][0]) for k in self.layer_sizes.keys()})
+            if t == episode_duration: break
+            print(" choices: ",
+                {q: self.controller.incoming[q][ac[0,0].item()] for q,ac in self.ac[t].items()},
+                [pc[0].item() for pc in self.pc[t] if len(self.plastic) > 0])
+            print(" likelihoods: ",
+                {q: "%.3f" % al[0,0].item() for q,al in self.al[t].items()},
+                ["%.3f" % pl[0].item() for pl in self.pl[t] if len(self.plastic) > 0])
 
 def default_initializer(register_names, symbols):
     pathways = {
