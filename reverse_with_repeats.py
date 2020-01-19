@@ -15,7 +15,7 @@ def reverse_trial(num_episodes, save_file):
 
     # Configuration
     register_names = ["rinp","rout"]
-    layer_sizes = {q: 4 for q in register_names + ["m"]}
+    layer_sizes = {q: 32 for q in register_names + ["m"]}
     hidden_size = 32
     rho = .99
     plastic = ["rinp<m"]

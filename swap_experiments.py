@@ -60,7 +60,7 @@ def swap_trial(distribution_variance_coefficient, save_file):
             
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 70,
+        num_epochs = 100,
         episode_duration = 3,
         training_example = training_example,
         reward = reward,

@@ -15,8 +15,8 @@ def basic_plastic_trial(num_episodes, save_file):
 
     # Configuration
     register_names = ["rinp","rout","m"]
-    layer_sizes = {q: 4 for q in register_names}
-    hidden_size = 6
+    layer_sizes = {q: 32 for q in register_names}
+    hidden_size = 32
     rho = .99
     plastic = ["rinp<m"]
     remove_pathways = ["rinp<rout", "m<rinp", "m<rout", "rout<m"]
@@ -53,28 +53,29 @@ def basic_plastic_trial(num_episodes, save_file):
         return r
 
     # ################### Sanity check
-    inputs = [["1", "2"]]
-    choices = [
+    inputs = [["2", "1"]]
+    correct_choices = [
         ({"rinp": "rinp<rinp", "rout": "rout<rout", "m":"m<m"}, [1.0]),
         ({"rinp": "rinp<m",    "rout": "rout<rout", "m":"m<m"}, [0.0]),
         ({"rinp": "rinp<rinp", "rout": "rout<rinp", "m":"m<m"}, [0.0]),
     ]
-    ghu.clone().dbg_run(inputs, episode_duration, choices)
-    input("???????")
+    # ghu.clone().dbg_run(inputs, episode_duration, correct_choices)
+    # input("???????")
     # ################### Sanity check
             
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 200,
+        num_epochs = 500,
         episode_duration = episode_duration,
         training_example = training_example,
         reward = reward,
         task = "basic_plastic",
-        learning_rate = .1,
+        learning_rate = .05,
         # line_search_iterations = 5,
         # distribution_cap = .1,
         # likelihood_cap = .7,
         # distribution_variance_coefficient = 0.05,
+        # choices=correct_choices, # perfect rewards with this
         verbose = 1,
         save_file = save_file)
 

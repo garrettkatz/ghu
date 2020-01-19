@@ -120,7 +120,7 @@ class GatedHebbianUnit(object):
                 b = (self.pc[t][0,:,i] == 1)
                 if b.sum() > 0:
                     dWL[b], dWR[b] = self.rehebbian(
-                        self.WL[p][b], self.WR[p][b], self.v[t-1][r][b], self.v[t][q][b])
+                        self.WL[p][b], self.WR[p][b], self.v[t][r][b], self.v[t][q][b])
             self.WL[p] = tr.cat((self.WL[p], dWL), dim=2)
             self.WR[p] = tr.cat((self.WR[p], dWR), dim=1)
 
