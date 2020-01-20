@@ -5,7 +5,6 @@ associated value in rout
 one extra register (rtmp) for key>value learning in rtmp>rinp
 """
 import numpy as np
-import torch as t5
 import matplotlib.pyplot as pt
 from ghu import *
 from codec import Codec
@@ -22,7 +21,7 @@ if __name__ == "__main__":
     rho = .99
     plastic = ["rout<rtmp"]
     remove_pathways = ["rinp<rout", "rinp<rtmp", "rtmp<rout"]
-    num_episodes = 10000
+    num_episodes = 500
 
     # Setup GHU
     num_symbols = 5
@@ -91,12 +90,12 @@ if __name__ == "__main__":
             
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 500,
+        num_epochs = 2000,
         episode_duration = 6,
         training_example = training_example,
         reward = reward,
         task = "recall",
-        learning_rate = .1,
+        learning_rate = .05,
         # line_search_iterations = 5,
         # distribution_cap = .1,
         # likelihood_cap = .7,

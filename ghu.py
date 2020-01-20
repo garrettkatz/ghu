@@ -150,35 +150,77 @@ class GatedHebbianUnit(object):
                 self.v[t][k] = tr.repeat_interleave(
                     self.codec.encode(k, symbol).view(1,-1),
                     self.batch_size, dim=0)
-    
-    def dbg_run(self, inputs, episode_duration, choices):
-        choices = [(
+
+    def run(self, episode_duration, inputs, targets, reward, choices=None, verbose=0):
+        """
+        Run on a batch of episodes and assess rewards
+            episode_duration: number of ticks in each episode
+            inputs[b][t]: input symbol at time t in episode b
+            targets[b]: target output sequence for episode b
+            reward(self, targets, outputs)[t]: reward at time t for given target/output sequences
+            choices: if provided, overwrites randomly sampled choices
+                choices[t][0][q]: pathway selected for recall in layer q at time t
+                choices[t][1][n]: nth pathway with learning on at time t
+        """
+
+        # Encode choices
+        if choices is None: choices = [None]*episode_duration
+        else: choices = [(
             {q: tr.stack([
                 tr.tensor([self.controller.incoming[q].index(p)])
-                for b in range(self.batch_size)]).reshape(1,self.batch_size,1) for q,p in ac.items()},
-            tr.stack([tr.tensor(pc) for b in range(self.batch_size)]).reshape(1,self.batch_size,1))
+                for b in range(self.batch_size)]).reshape(1,self.batch_size,1)
+                for q,p in ac.items()},
+            tr.tensor([
+                [(p in pc) for p in self.plastic]
+                for b in range(self.batch_size)], dtype=tr.float32)
+                .reshape(1,self.batch_size,len(self.plastic)))
             for (ac, pc) in choices]
+
+        if verbose > 0: print("Encoding episode inputs...")
         encoded = {}
+        for t in range(len(inputs[0])):
+            if verbose > 1: print(" t=%d..." % t)
+            encoded[t] = tr.stack([
+                self.codec.encode("rinp", inputs[b][t])
+                for b in range(self.batch_size)])
+
+        if verbose > 0: print("Running episodes...")
         for t in range(episode_duration):
-            if t < len(inputs[0]):
-                encoded[t] = tr.stack([
-                    self.codec.encode("rinp", inputs[0][t])
-                    for b in range(self.batch_size)])
+            if verbose > 1: print(" t=%d..." % t)
+            if t < len(encoded): self.v[t]["rinp"] = encoded[t] # insert input
+            self.tick(choices=choices[t], verbose=verbose-1) # tick
+
+        if verbose > 0: print("Decoding outputs...")
+        outputs = np.empty((self.batch_size, episode_duration), dtype=str)
         for t in range(episode_duration):
-            print(" t=%d..." % t)
-            if t < len(inputs[0]): self.v[t]["rinp"] = encoded[t]
-            self.tick(choices=choices[t], verbose=0) # Take a step
+            if verbose > 1: print(" t=%d..." % t)
+            outputs[:,t] = [
+                self.codec.decode("rout", self.v[t+1]["rout"][b,:])
+                for b in range(self.batch_size)]
+
+        # Assess rewards
+        if verbose > 0: print("Assessing reward...")
+        rewards = np.array([
+            reward(self, targets[b], outputs[b])
+            for b in range(self.batch_size)])
+
+        # Summarize first episode
         for t in range(episode_duration+1):
-            print(" Step %d" % t)
-            print(" layers: ",
+            if verbose > 2: print(" Step %d" % t)
+            if verbose > 2: print(" layers: ",
                 {k: self.codec.decode(k, self.v[t][k][0]) for k in self.layer_sizes.keys()})
             if t == episode_duration: break
-            print(" choices: ",
+            if verbose > 2: print(" choices: ",
                 {q: self.controller.incoming[q][ac[0,0].item()] for q,ac in self.ac[t].items()},
                 [pc[0].item() for pc in self.pc[t] if len(self.plastic) > 0])
-            print(" likelihoods: ",
+            if verbose > 2: print(" likelihoods: ",
                 {q: "%.3f" % al[0,0].item() for q,al in self.al[t].items()},
                 ["%.3f" % pl[0].item() for pl in self.pl[t] if len(self.plastic) > 0])
+            if verbose > 2: print(" Reward=%f)" % rewards[0,t])
+        if verbose > 2: print(" Net reward=%f)" % rewards[0].sum())
+
+        # return results
+        return outputs, rewards
 
 def default_initializer(register_names, symbols):
     pathways = {

@@ -24,7 +24,7 @@ def reverse_trial(num_episodes, save_file):
     input_keys = None
 
     # Setup GHU
-    num_addresses = 4
+    num_addresses = 10
     symbols = [str(a) for a in range(num_addresses)]
     pathways, associations = turing_initializer(
         register_names, num_addresses)
@@ -45,8 +45,8 @@ def reverse_trial(num_episodes, save_file):
 
     # training example generation
     list_symbols = 5
-    min_length = 4
-    max_length = 4
+    min_length = 5
+    max_length = 5
     episode_duration = 2*max_length - 1
     def training_example():
         list_length = np.random.randint(min_length, max_length+1)
