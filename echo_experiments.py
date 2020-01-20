@@ -15,8 +15,8 @@ def echo_trial(episode_duration, save_file):
 
     # Configuration
     num_symbols = 10
-    layer_sizes = {"rinp": 32, "rout":32}
-    hidden_size = 16
+    layer_sizes = {"rinp": 32, "rout":32, "rtmp": 32}
+    hidden_size = 32
     rho = .99
     plastic = []
     num_episodes = 100
@@ -37,37 +37,35 @@ def echo_trial(episode_duration, save_file):
     ghu.fill_layers(separator)
 
     # Generate dataset
-    training_symbols = symbols[1:-1]
-    testing_symbols = symbols[-1:]
+    input_length = int(episode_duration/2)
+    all_inputs = []
+    for symbol in symbols[1:]:
+        for t in range(input_length):
+            inputs = [separator]*input_length
+            inputs[t] = symbol
+            all_inputs.append(inputs)
+    split = int(.80*len(all_inputs))
 
-    # training example generation
-    def example(symbols):
+    # example generation
+    def example(dataset):
         # Randomly choose echo symbol (excluding 0 separator)
-        inputs = np.random.choice(symbols, size=1)
-        targets = inputs
+        inputs = dataset[np.random.randint(len(dataset))]
+        targets = [inp for inp in inputs if inp != separator]
         return inputs, targets
-    def training_example(): return example(training_symbols)
-    def testing_example(): return example(testing_symbols)
+    def training_example(): return example(all_inputs[:split])
+    def testing_example(): return example(all_inputs[split:])
     
+    # all or nothing reward
     def reward(ghu, targets, outputs):
         r = np.zeros(len(outputs))
-
-        # reward calculation based on leading LVD at individual steps
-        # idx = [i for i, out in enumerate(outputs) if out != separator]
-        # outputs_ = [out for out in outputs if out != separator]
-        # _, d = lvd(outputs_, targets)
-        # for i in range(1,d.shape[0]):
-        #     r[idx[i-1]] = +1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
-
-        # all or nothing
-        outputs_ = np.array([out for out in outputs if out != separator])
-        if len(outputs_) == len(targets): r[-1] = (targets == outputs_).all()
+        outputs = np.array([out for out in outputs[input_length:] if out != separator])
+        if len(outputs) == len(targets): r[-1] = (targets == outputs).all()
         return r
 
-    # correct choices for debugging
-    correct_choices = \
-        [({"rinp": "rinp<rout", "rout": "rout<rinp"}, [])]*2 + \
-        [({"rinp": "rinp<rinp", "rout": "rout<rout"}, [])]*(episode_duration-2)
+    # # correct choices for debugging
+    # correct_choices = \
+    #     [({"rinp": "rinp<rout", "rout": "rout<rinp"}, [])]*2 + \
+    #     [({"rinp": "rinp<rinp", "rout": "rout<rout"}, [])]*(episode_duration-2)
     # # run it to debug:
     # inputs, targets = zip(*[training_example() for b in range(ghu.batch_size)])
     # ghu.run(episode_duration, inputs, targets, reward, choices=correct_choices, verbose=3)

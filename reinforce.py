@@ -134,25 +134,27 @@ def reinforce(ghu_init,
         del ghu
 
         # Assess generalization similarly
-        if verbose > 1: print("Cloning GHU for generalization...")
-        ghu = ghu_init.clone()
-        if verbose > 1: print("Sampling problem instances...")
-        inputs, targets = zip(*[testing_example() for b in range(ghu.batch_size)])
-        outputs, rewards = ghu.run(
-            episode_duration, inputs, targets, reward, choices=choices, verbose=1)
-        R_gen = rewards.sum(axis=1)
-        avg_general[epoch] = R_gen.mean()
-        del ghu
+        if testing_example is not None:
+            if verbose > 1: print("Cloning GHU for generalization...")
+            ghu = ghu_init.clone()
+            if verbose > 1: print("Sampling problem instances...")
+            inputs, targets = zip(*[testing_example() for b in range(ghu.batch_size)])
+            outputs, rewards = ghu.run(
+                episode_duration, inputs, targets, reward, choices=choices, verbose=1)
+            R_gen = rewards.sum(axis=1)
+            avg_general[epoch] = R_gen.mean()
+            del ghu
 
         # Report progress
         if verbose > 0:
             print(" Avg reward = %.2f +/- %.2f (%.2f, %.2f), |~D| = %f, Var D = %f" %
                 (avg_rewards[epoch], R.std(), R.min(), R.max(), dist_change[epoch], dist_vars[epoch]))
-            print(" Avg reward = %.2f +/- %.2f (%.2f, %.2f) *** Testing set" %
-                (avg_general[epoch], R_gen.std(), R_gen.min(), R_gen.max()))
             print(" saturation=%f +/- %.2f (%f, %f), |grad| = %f" %
                 (saturation.mean(), saturation.std(), saturation.min(), saturation.max(),
                 grad_norms[epoch]))
+            if testing_example is not None:
+                print(" *** Testing set: Avg reward = %.2f +/- %.2f (%.2f, %.2f)" %
+                    (avg_general[epoch], R_gen.std(), R_gen.min(), R_gen.max()))
 
         # if epoch > 0 and epoch % 100 == 0:
         #     yn = input("Continue? [y/n]")

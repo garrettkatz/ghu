@@ -2,6 +2,7 @@
 Swap input (rinp) on output (rout) with one extra registers (rtmp)
 """
 import pickle as pk
+import itertools as it
 import numpy as np
 import torch as tr
 import matplotlib.pyplot as pt
@@ -14,12 +15,12 @@ from reinforce import reinforce
 def swap_trial(distribution_variance_coefficient, save_file):
 
     # Configuration
-    num_symbols = 4
-    layer_sizes = {"rinp": 16, "rout":16, "rtmp": 16}
+    num_symbols = 10
+    layer_sizes = {"rinp": 32, "rout":32, "rtmp": 32}
     hidden_size = 32
     rho = .99
     plastic = []
-    num_episodes = 1000
+    num_episodes = 100
 
     # Setup GHU
     symbols = [str(a) for a in range(num_symbols)]
@@ -36,39 +37,35 @@ def swap_trial(distribution_variance_coefficient, save_file):
     separator = "0"
     ghu.fill_layers(separator)
 
-    # training example generation
-    def training_example():
-        # Randomly choose swap symbols (excluding 0 separator)
-        inputs = np.random.choice(symbols[1:], size=2, replace=False)
+    # Generate dataset
+    all_inputs = list(it.permutations(symbols[1:],2))
+    split = int(.80*len(all_inputs))
+
+    # example generation
+    def example(dataset):
+        # Randomly choose echo symbol (excluding 0 separator)
+        inputs = dataset[np.random.randint(len(dataset))]
         targets = inputs[::-1]
         return inputs, targets
+    def training_example(): return example(all_inputs[:split])
+    def testing_example(): return example(all_inputs[split:])
     
-    # reward calculation based on leading LVD at individual steps
+    # all or nothing reward
     def reward(ghu, targets, outputs):
-        idx = [i for i, out in enumerate(outputs) if out != separator]
-        outputs_ = [out for out in outputs if out != separator]
-        dmn, d = lvd(outputs_, targets)
         r = np.zeros(len(outputs))
-        
-        # for i in range(1,d.shape[0]):
-        #     r[idx[i-1]] = +1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
-
-        # All or nothing
-        r[-1] = (dmn == 0)
-
+        outputs = np.array([out for out in outputs[1:] if out != separator])
+        if len(outputs) == len(targets): r[-1] = (targets == outputs).all()
         return r
             
     # Run optimization
-    avg_rewards, grad_norms = reinforce(ghu,
+    avg_rewards, avg_general, grad_norms = reinforce(ghu,
         num_epochs = 100,
         episode_duration = 3,
         training_example = training_example,
+        testing_example = testing_example,
         reward = reward,
         task = "swap",
         learning_rate = .1,
-        # line_search_iterations = 5,
-        # distribution_cap = .1,
-        # likelihood_cap = .7,
         distribution_variance_coefficient = distribution_variance_coefficient,
         verbose = 1,
         save_file = save_file)
@@ -76,16 +73,17 @@ def swap_trial(distribution_variance_coefficient, save_file):
 if __name__ == "__main__":
     print("*******************************************************")
     
-    dvcs = [0.]
+    # dvcs = [0.]
     # dvcs = [0., 0.001, 0.01, 0.1, 1.]
     # dvcs = [.0005, 0.005, 0.05, 0.5]
-    # dvcs = [0., .0005, 0.001, .005, 0.01, .05, 0.1, .5, 1.]
-    num_reps = 5
+    dvcs = [0., .0005, 0.001, .005, 0.01, .05, 0.1, .5, 1.]
+    num_reps = 10
+    save_base = "results/swap/run_%f_%d.pkl"
     
     # Run the experiment
     for dvc in dvcs:
         for rep in range(num_reps):
-            save_file = "results/swap/run_%f_%d.pkl" % (dvc, rep)
+            save_file = save_base % (dvc, rep)
             swap_trial(dvc, save_file)
 
     # Load results
@@ -94,24 +92,25 @@ if __name__ == "__main__":
     for dvc in dvcs:
         results[dvc] = {}
         for rep in range(num_reps):
-            save_file = "results/swap/run_%f_%d.pkl" % (dvc, rep)
+            save_file = save_base % (dvc, rep)
             with open(save_file,"rb") as f:
                 results[dvc][rep] = pk.load(f)
     
     # Plot results
-    pt.figure(figsize=(4.25,1.85))
+    pt.figure(figsize=(4.25,2.45))
     bg = (.9,.9,.9) # background color
     # dvcs_sub = [0., 0.01, 1.]
-    dvcs_sub = dvcs[:3]
+    # dvcs_sub = dvcs[:3]
+    dvcs_sub = dvcs
     for d,dvc in enumerate(dvcs_sub):
-        avg_rewards = np.array([results[dvc][rep][1]
+        avg_rewards = np.array([results[dvc][rep][2] # generalization
             for rep in results[dvc].keys()]).T
 
         pt.plot(avg_rewards, c=bg, zorder=0)
         fg = tuple([float(d)/len(dvcs_sub)]*3) # foreground color
         pt.plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label=("$\lambda$=%.2f" % dvc))
 
-    # pt.title("Learning curves")
+    pt.title("Testing set")
     pt.ylabel("Average Reward")
     pt.xlabel("Epoch")
     pt.legend(loc="lower right")

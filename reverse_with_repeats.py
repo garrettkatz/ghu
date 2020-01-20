@@ -2,6 +2,7 @@
 Reverse input (rinp) on output (rout) with turing layer m
 """
 import pickle as pk
+import itertools as it
 import numpy as np
 import torch as tr
 import matplotlib.pyplot as pt
@@ -43,27 +44,39 @@ def reverse_trial(num_episodes, save_file):
     separator = "0"
     ghu.fill_layers(separator)
 
-    # training example generation
-    list_symbols = 5
-    min_length = 5
-    max_length = 5
+    # Dataset of all possible input lists
+    list_symbols = 6
+    min_length = 4
+    max_length = 4
     episode_duration = 2*max_length - 1
+    all_inputs = [np.array(inputs)
+        for list_length in range(min_length, max_length+1)
+            for inputs in it.product(symbols[1:list_symbols], repeat=list_length)]
+    # input("%d..." % len(all_inputs))
+    split = int(.80*len(all_inputs))
+
+    # example generation
     def training_example():
-        list_length = np.random.randint(min_length, max_length+1)
-        # inputs = np.array(["0"]*(list_length+1))
-        # # inputs[1:] = np.random.choice(symbols[1:list_symbols], size=list_length, replace=False)
-        # inputs[1:] = np.random.choice(symbols[1:list_symbols], size=list_length, replace=True)
-        inputs = np.random.choice(symbols[1:list_symbols], size=list_length, replace=True)
+        # list_length = np.random.randint(min_length, max_length+1)
+        # # inputs = np.array(["0"]*(list_length+1))
+        # # # inputs[1:] = np.random.choice(symbols[1:list_symbols], size=list_length, replace=False)
+        # # inputs[1:] = np.random.choice(symbols[1:list_symbols], size=list_length, replace=True)
+        # inputs = np.random.choice(symbols[1:list_symbols], size=list_length, replace=True)
+        inputs = all_inputs[np.random.randint(split)]
+        targets = inputs[::-1]
+        return inputs, targets
+    def testing_example():
+        inputs = all_inputs[np.random.randint(split, len(all_inputs))]
         targets = inputs[::-1]
         return inputs, targets
     
-    # reward calculation based on leading LVD at individual steps
+    # reward calculation 
     def reward(ghu, targets, outputs):
-        r = np.zeros(len(outputs))
-        
+        r = np.zeros(len(outputs))        
         # All or nothing
         outputs_ = outputs[-len(targets):]
-        if lvd(outputs_, targets)[0] == 0: r[-1] = +1.
+        # if lvd(outputs_, targets)[0] == 0: r[-1] = +1.
+        if len(outputs_) == len(targets): r[-1] = (outputs_ == targets).all()
         
         return r
 
@@ -81,10 +94,11 @@ def reverse_trial(num_episodes, save_file):
     # ################### Sanity check
 
     # Run optimization
-    avg_rewards, grad_norms = reinforce(ghu,
+    avg_rewards, avg_general, grad_norms = reinforce(ghu,
         num_epochs = 250,
         episode_duration = episode_duration,
         training_example = training_example,
+        testing_example = testing_example,
         reward = reward,
         task = "reverse",
         learning_rate = .1,
@@ -100,17 +114,18 @@ if __name__ == "__main__":
     print("*******************************************************")
     
     num_reps = 20
-    num_episodes = 8000
+    num_episodes = 5000
+    save_base = "results/big_reverse/run_%d_%d.pkl"
     
     # Run the experiment
     for rep in range(num_reps):
-        save_file = "results/big_reverse/run_%d_%d.pkl" % (num_episodes, rep)
+        save_file = save_base % (num_episodes, rep)
         reverse_trial(num_episodes, save_file)
     
     # Load results
     results = {}
     for rep in range(num_reps):
-        save_file = "results/big_reverse/run_%d_%d.pkl" % (num_episodes, rep)
+        save_file = save_base % (num_episodes, rep)
         with open(save_file,"rb") as f:
             results[rep] = pk.load(f)
     
