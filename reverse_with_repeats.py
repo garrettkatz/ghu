@@ -15,8 +15,8 @@ def reverse_trial(num_episodes, save_file):
 
     # Configuration
     register_names = ["rinp","rout"]
-    layer_sizes = {q: 32 for q in register_names + ["m"]}
-    hidden_size = 32
+    layer_sizes = {q: 64 for q in register_names + ["m"]}
+    hidden_size = 64
     rho = .99
     plastic = ["rinp<m"]
     remove_pathways = ["rinp<rout", "m<rinp", "m<rout", "rout<m"]
@@ -44,16 +44,17 @@ def reverse_trial(num_episodes, save_file):
     ghu.fill_layers(separator)
 
     # training example generation
-    list_symbols = 4
-    min_length = 3
-    max_length = 3
-    episode_duration = 2*max_length
+    list_symbols = 5
+    min_length = 4
+    max_length = 4
+    episode_duration = 2*max_length - 1
     def training_example():
         list_length = np.random.randint(min_length, max_length+1)
-        inputs = np.array(["0"]*(list_length+1))
-        # inputs[1:] = np.random.choice(symbols[1:list_symbols], size=list_length, replace=False)
-        inputs[1:] = np.random.choice(symbols[1:list_symbols], size=list_length, replace=True)
-        targets = inputs[1:][::-1]
+        # inputs = np.array(["0"]*(list_length+1))
+        # # inputs[1:] = np.random.choice(symbols[1:list_symbols], size=list_length, replace=False)
+        # inputs[1:] = np.random.choice(symbols[1:list_symbols], size=list_length, replace=True)
+        inputs = np.random.choice(symbols[1:list_symbols], size=list_length, replace=True)
+        targets = inputs[::-1]
         return inputs, targets
     
     # reward calculation based on leading LVD at individual steps
@@ -70,16 +71,18 @@ def reverse_trial(num_episodes, save_file):
     correct_choices = [
         ({"rinp": "rinp<rinp", "rout": "rout<rout", "m":"inc-m"}, [1.0]),
         ({"rinp": "rinp<rinp", "rout": "rout<rout", "m":"inc-m"}, [1.0]),
-        ({"rinp": "rinp<rinp", "rout": "rout<rinp", "m":"dec-m"}, [1.0]),
+        ({"rinp": "rinp<rinp", "rout": "rout<rout", "m":"m<m"}, [1.0]),
         ({"rinp": "rinp<m", "rout": "rout<rinp", "m":"dec-m"}, [0.0]),
         ({"rinp": "rinp<m", "rout": "rout<rinp", "m":"dec-m"}, [0.0]),
         ({"rinp": "rinp<m", "rout": "rout<rinp", "m":"m<m"}, [0.0]),
+        ({"rinp": "rinp<m", "rout": "rout<rinp", "m":"m<m"}, [0.0]),
+        # ({"rinp": "rinp<m", "rout": "rout<rinp", "m":"m<m"}, [0.0]),
     ]
     # ################### Sanity check
 
     # Run optimization
     avg_rewards, grad_norms = reinforce(ghu,
-        num_epochs = 500,
+        num_epochs = 250,
         episode_duration = episode_duration,
         training_example = training_example,
         reward = reward,
@@ -96,7 +99,7 @@ def reverse_trial(num_episodes, save_file):
 if __name__ == "__main__":
     print("*******************************************************")
     
-    num_reps = 10
+    num_reps = 20
     num_episodes = 8000
     
     # Run the experiment
