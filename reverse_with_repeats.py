@@ -113,14 +113,16 @@ def reverse_trial(num_episodes, save_file):
 if __name__ == "__main__":
     print("*******************************************************")
     
+    # num_reps = 20
+    # num_episodes = 5000
     num_reps = 20
-    num_episodes = 5000
-    save_base = "results/big_reverse/run_%d_%d.pkl"
+    num_episodes = 8000
+    save_base = "results/big_reverse/len4/run_%d_%d.pkl"
     
-    # Run the experiment
-    for rep in range(num_reps):
-        save_file = save_base % (num_episodes, rep)
-        reverse_trial(num_episodes, save_file)
+    # # Run the experiment
+    # for rep in range(num_reps):
+    #     save_file = save_base % (num_episodes, rep)
+    #     reverse_trial(num_episodes, save_file)
     
     # Load results
     results = {}
@@ -130,7 +132,7 @@ if __name__ == "__main__":
             results[rep] = pk.load(f)
     
     # Plot results
-    pt.figure(figsize=(4.25,2.25))
+    pt.figure(figsize=(4.25,2.))
     bg = (.9,.9,.9) # background color
     avg_rewards = np.array([results[rep][1] for rep in results.keys()]).T
 
@@ -141,8 +143,8 @@ if __name__ == "__main__":
     # pt.title("Learning curves")
     pt.ylabel("Average Reward")
     pt.xlabel("Epoch")
-    pt.ylim([-1,1])
-    pt.legend(loc="lower center")
+    pt.ylim([-.3,1])
+    pt.legend(loc="lower right")
     pt.tight_layout()
     # pt.savefig('big_reverse_learning_curves.eps')
     pt.show()

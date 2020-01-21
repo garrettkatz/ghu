@@ -1,3 +1,4 @@
+import itertools as it
 import numpy as np
 import torch as tr
 import matplotlib.pyplot as pt
@@ -8,96 +9,79 @@ from lvd import lvd
 from reinforce import *
 import json
 
-def trials(i, avgrew, gradnorm):
+def trials(i, avgrew, avggen, gradnorm):
     print("***************************** Trial ",str(i+1)," *******************************")
     
-    # GHU settings
-    num_symbols = 7
-    layer_sizes = {"rinp": 512, "rout":512, "rtemp":512}
-    hidden_size = 128
+    # Configuration
+    num_symbols = 8
+    layer_sizes = {"rinp": 32, "rout":32, "rtemp":32}
+    hidden_size = 32
+    rho = .99
     plastic = []
-    num_episodes = 2000
+    num_episodes = 500
 
+    # Setup GHU
     symbols = [str(a) for a in range(num_symbols+1)]
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
-
-    print(symbols)
-
-    codec = Codec(layer_sizes, symbols, rho=.9999)
+    codec = Codec(layer_sizes, symbols, rho=rho, ortho=True)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
-
-    # Sanity check
     ghu = GatedHebbianUnit(
         layer_sizes, pathways, controller, codec, plastic=plastic, batch_size = num_episodes)
     ghu.associate(associations)
-    
-    separator = "0"
-    for k in layer_sizes.keys():
-        # ghu_init.v[0][k] = codec.encode(k, separator) # !! no good anymore
-        # !! Now we have to repeat the separator for each episode in the batch
-        # !! v[t][k][e,:] is time t, layer k activity for episode e
-        ghu.v[0][k] = tr.repeat_interleave(
-            codec.encode(k, separator).view(1,-1),
-            num_episodes, dim=0)
 
-    def training_example():
-        # Randomly choose echo symbol (excluding 0 separator)
-        #max_time = 6
-        list_symbols = 7
-        min_length = 5
-        max_length = 5
-        list_length = np.random.randint(min_length, max_length+1)
-        inputs = np.array([separator]*(list_length))
-        inputs[:] = np.random.choice(symbols[1:list_symbols+1], size=list_length, replace=True)
-        #print("inputs",inputs)
-        targets = [max(inputs)]
-        #print("targets", targets)
+    # Initialize layers
+    separator = symbols[0]
+    ghu.fill_layers(separator)
+
+    # Generate dataset
+    input_length = 5
+    all_inputs = [np.array(inputs)
+        for inputs in it.product(symbols[1:], repeat=input_length)]
+    split = int(.80*len(all_inputs))
+
+    # example generation
+    def example(dataset):
+        inputs = dataset[np.random.randint(len(dataset))]
+        targets = np.array([max(inputs)])
         return inputs, targets
+    def training_example(): return example(all_inputs[:split])
+    def testing_example(): return example(all_inputs[split:])
     
-    # # reward calculation from LVD
-    # def reward(ghu, targets, outputs):
-    #     # Assess reward: negative LVD after separator filtering
-    #     outputs_ = [out for out in outputs if out != separator]
-    #     r = -lvd(outputs_, targets)
-    #     return r
-
-    # reward calculation based on individual steps
+    # all or nothing reward
     def reward(ghu, targets, outputs):
-        #outputs_ = [out for out in outputs if out != separator]
-        outputs_ = [outputs[-1]]
-        _, d = lvd(outputs_, targets)
         r = np.zeros(len(outputs))
-        for i in range(1,d.shape[0]):
-            r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
+        r[-1] = (outputs[-1] == targets[0])
         return r
-            
+    
     # Optimization settings
-    filename = "max"+str(i+1)+".png"
-
-    avg_rewards, grad_norms = reinforce(
-    ghu,
-    num_epochs = 200,
-    episode_duration = 5,
-    training_example = training_example,
-    reward = reward,
-    task = "max",
-    learning_rate = .03,
-    verbose = 1)
+    avg_rewards, avg_general, grad_norms = reinforce(
+        ghu,
+        num_epochs = 100,
+        episode_duration = input_length,
+        training_example = training_example,
+        testing_example = testing_example,
+        reward = reward,
+        task = "max",
+        learning_rate = .1,
+        verbose = 1)
 
     gradnorm[i+1]=grad_norms.tolist()
     avgrew[i+1]=avg_rewards.tolist()
-
+    avggen[i+1]=avg_general.tolist()
   
 allgradnorms = {}
 allavgrewards = {}  
+allavggeneral = {}
 
-
-for i in range(30):
-    trials(i,allavgrewards, allgradnorms)
+for i in range(10):
+    trials(i, allavgrewards, allavggeneral, allgradnorms)
 
 with open("maxavgrwd.json","w") as fp:
     json.dump(allavgrewards, fp)
+
+with open("maxavggen.json","w") as fp:
+    json.dump(allavggeneral, fp)
 
 with open("maxgradnorm.json","w") as fp:
     json.dump(allgradnorms, fp)

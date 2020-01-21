@@ -80,11 +80,11 @@ if __name__ == "__main__":
     num_reps = 10
     save_base = "results/swap/run_%f_%d.pkl"
     
-    # Run the experiment
-    for dvc in dvcs:
-        for rep in range(num_reps):
-            save_file = save_base % (dvc, rep)
-            swap_trial(dvc, save_file)
+    # # Run the experiment
+    # for dvc in dvcs:
+    #     for rep in range(num_reps):
+    #         save_file = save_base % (dvc, rep)
+    #         swap_trial(dvc, save_file)
 
     # Load results
     # dvcs = [0., .0005, 0.001, .005, 0.01, .05, 0.1, .5, 1.]
@@ -97,11 +97,11 @@ if __name__ == "__main__":
                 results[dvc][rep] = pk.load(f)
     
     # Plot results
-    pt.figure(figsize=(4.25,2.45))
+    pt.figure(figsize=(4.25,1.85))
     bg = (.9,.9,.9) # background color
-    # dvcs_sub = [0., 0.01, 1.]
+    dvcs_sub = [0., 0.01, 1.]
     # dvcs_sub = dvcs[:3]
-    dvcs_sub = dvcs
+    # dvcs_sub = dvcs
     for d,dvc in enumerate(dvcs_sub):
         avg_rewards = np.array([results[dvc][rep][2] # generalization
             for rep in results[dvc].keys()]).T

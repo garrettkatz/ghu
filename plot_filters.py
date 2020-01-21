@@ -2,32 +2,39 @@ import json
 import numpy as np 
 import matplotlib.pyplot as pt
 
-pt.figure(figsize=(4.25,3.5))
+pt.figure(figsize=(4.25,3.))
 bg = (.9,.9,.9)
 
-filenames = ["filteravgrwd.json", "rfilteravgrwd.json"]
+# filenames = ["filteravgrwd.json", "rfilteravgrwd.json"]
+filenames = ["filteravgrwd.json", "filteravggen.json"]
 
+full = {}
 for sp,filetoload in enumerate(filenames):
 
-    with open("data/" + filetoload, "r") as file:
+    with open("results/" + filetoload, "r") as file:
         result = json.load(file)
-    full = []
-
-    pt.subplot(2,1,sp+1)
+    full[sp] = []
     for k,val in result.items():
         avgr = np.array(val)
-        full.append(val)
-        pt.plot(avgr, c=bg, zorder=0)
-	
-    fg = tuple([1/10.]*3)
-    full=np.array(full)
-    pt.plot(full.mean(axis=0), c=fg, zorder=1, label="Average reward over 30 trials")
-    pt.legend(loc="lower right")
-    pt.title("No repeats" if sp == 0 else "With repeats")
-    pt.ylabel("Average Reward")
+        full[sp].append(val)
+    full[sp]=np.array(full[sp])
 
+num_reps = len(full[1])
+fg = tuple([1/10.]*3)
+pt.subplot(2,1,1)
+pt.plot(full[1].T, c=bg, zorder=0)
+pt.plot(full[1].mean(axis=0), c=fg, zorder=1, label="Avg. over %d trials" % num_reps)
+pt.legend(loc="lower right")
+pt.ylabel("Test Rewards")
+
+pt.subplot(2,1,2)
+pt.plot((full[0] - full[1]).T, c=bg, zorder=0)
+pt.plot((full[0]-full[1]).mean(axis=0), c=fg, zorder=1) #, label="Avg. over %d trials" % num_reps)
+# pt.legend(loc="upper right")
+pt.ylabel("Train - Test")
 pt.xlabel("Epoch")
+
 pt.tight_layout()
-pt.savefig("both_filter_curves.eps")
+pt.savefig("filter_curves.eps")
 pt.show()
 
