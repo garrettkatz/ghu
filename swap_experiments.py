@@ -73,11 +73,11 @@ def swap_trial(distribution_variance_coefficient, save_file):
 if __name__ == "__main__":
     print("*******************************************************")
     
-    # dvcs = [0.]
+    dvcs = [0.]
     # dvcs = [0., 0.001, 0.01, 0.1, 1.]
     # dvcs = [.0005, 0.005, 0.05, 0.5]
-    dvcs = [0., .0005, 0.001, .005, 0.01, .05, 0.1, .5, 1.]
-    num_reps = 10
+    # dvcs = [0., .0005, 0.001, .005, 0.01, .05, 0.1, .5, 1.]
+    num_reps = 30
     save_base = "results/swap/run_%f_%d.pkl"
     
     # # Run the experiment
@@ -96,48 +96,81 @@ if __name__ == "__main__":
             with open(save_file,"rb") as f:
                 results[dvc][rep] = pk.load(f)
     
-    # Plot results
-    pt.figure(figsize=(4.25,1.85))
+    # Plot testing/generalization error
+    results = results[0.]
+    avg_rewards = np.array([results[rep][1] for rep in results.keys()]).T
+    avg_general = np.array([results[rep][2] for rep in results.keys()]).T
+
     bg = (.9,.9,.9) # background color
-    dvcs_sub = [0., 0.01, 1.]
-    # dvcs_sub = dvcs[:3]
-    # dvcs_sub = dvcs
-    for d,dvc in enumerate(dvcs_sub):
-        avg_rewards = np.array([results[dvc][rep][2] # generalization
-            for rep in results[dvc].keys()]).T
-
-        pt.plot(avg_rewards, c=bg, zorder=0)
-        fg = tuple([float(d)/len(dvcs_sub)]*3) # foreground color
-        pt.plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label=("$\lambda$=%.2f" % dvc))
-
-    pt.title("Testing set")
-    pt.ylabel("Average Reward")
-    pt.xlabel("Epoch")
+    fg = (.1, .1, .1) # foreground color
+    pt.figure(figsize=(4.25,3.85))
+    pt.subplot(3,1,1)
+    pt.plot(avg_rewards, c=bg, zorder=0)
+    pt.plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label = "Average over %d trials" % len(results))
     pt.legend(loc="lower right")
-    pt.tight_layout()
-    pt.savefig('swap_learning_curves.eps')
-    pt.show()
-    
-    # Histograms of final rewards
-    pt.figure(figsize=(4.25,2))
-    finals = []
-    for d,dvc in enumerate(dvcs):
-        avg_rewards = np.array([results[dvc][rep][1]
-            for rep in results[dvc].keys()]).T
-        finals.append(avg_rewards[-1,:])
-    # pt.boxplot(finals, showfliers=False)
-    means = [f.mean() for f in finals]
-    stds = [f.std() for f in finals]
-    pt.errorbar(range(len(dvcs)), means, fmt='ko', yerr=stds, capsize=10)
+    pt.ylabel("Train Rewards")
 
-    # pt.title("Final Average Rewards")
-    pt.ylabel("Reward")
-    pt.xlabel("$\lambda$")
-    # locs, _ = pt.xticks()
-    # pt.xticks(locs[1:-1], ["%.1e" % dvc for dvc in dvcs])
-    pt.xticks(range(len(dvcs)), ["%.4f" % dvc for dvc in dvcs], rotation=45)
+    pt.subplot(3,1,2)
+    pt.plot(avg_general, c=bg, zorder=0)
+    pt.plot(avg_general.mean(axis=1), c=fg, zorder=1) #, label = "Average over %d trials" % len(results))
+    # pt.legend(loc="lower right")
+    pt.ylabel("Test Rewards")
+    
+    pt.subplot(3,1,3)
+    pt.plot((avg_rewards-avg_general).T, c=bg, zorder=0)
+    pt.plot((avg_rewards-avg_general).mean(axis=0), c=fg, zorder=1) #, label="Avg. over %d trials" % num_reps)
+    # pt.legend(loc="upper right")
+    pt.ylabel("Train - Test")
+    pt.xlabel("Epoch")
+    
     pt.tight_layout()
-    pt.savefig('swap_finals.eps')
+    pt.savefig("swap_curves.eps")
     pt.show()
+   
+    
+    ### Old dvc plots    
+    # # Plot results
+    # pt.figure(figsize=(4.25,1.85))
+    # bg = (.9,.9,.9) # background color
+    # # dvcs_sub = [0., 0.01, 1.]
+    # # dvcs_sub = dvcs[:3]
+    # dvcs_sub = dvcs
+    # for d,dvc in enumerate(dvcs_sub):
+    #     avg_rewards = np.array([results[dvc][rep][2] # generalization
+    #         for rep in results[dvc].keys()]).T
+
+    #     pt.plot(avg_rewards, c=bg, zorder=0)
+    #     fg = tuple([float(d)/len(dvcs_sub)]*3) # foreground color
+    #     pt.plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label=("$\lambda$=%.2f" % dvc))
+
+    # pt.title("Testing set")
+    # pt.ylabel("Average Reward")
+    # pt.xlabel("Epoch")
+    # pt.legend(loc="lower right")
+    # pt.tight_layout()
+    # pt.savefig('swap_learning_curves.eps')
+    # pt.show()
+    
+    # # Histograms of final rewards
+    # pt.figure(figsize=(4.25,2))
+    # finals = []
+    # for d,dvc in enumerate(dvcs):
+    #     avg_rewards = np.array([results[dvc][rep][1]
+    #         for rep in results[dvc].keys()]).T
+    #     finals.append(avg_rewards[-1,:])
+    # # pt.boxplot(finals, showfliers=False)
+    # means = [f.mean() for f in finals]
+    # stds = [f.std() for f in finals]
+    # pt.errorbar(range(len(dvcs)), means, fmt='ko', yerr=stds, capsize=10)
+
+    # # pt.title("Final Average Rewards")
+    # pt.ylabel("Reward")
+    # pt.xlabel("$\lambda$")
+    # # locs, _ = pt.xticks()
+    # # pt.xticks(locs[1:-1], ["%.1e" % dvc for dvc in dvcs])
+    # pt.xticks(range(len(dvcs)), ["%.4f" % dvc for dvc in dvcs], rotation=45)
+    # pt.tight_layout()
+    # pt.savefig('swap_finals.eps')
+    # pt.show()
 
 

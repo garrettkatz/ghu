@@ -17,7 +17,7 @@ def trials(i, avgrew, avggen, gradnorm):
     hidden_size = 32
     rho = .99
     plastic = []
-    num_episodes = 2000
+    num_episodes = 500
 
     # Setup GHU
     symbols = [str(a) for a in range(num_symbols+1)]
@@ -58,7 +58,7 @@ def trials(i, avgrew, avggen, gradnorm):
     #Optimization settings
     avg_rewards, avg_general, grad_norms = reinforce(
         ghu,
-        num_epochs = 500,
+        num_epochs = 300,
         episode_duration = input_length,
         training_example = training_example,
         testing_example = testing_example,
@@ -75,14 +75,14 @@ allgradnorms = {}
 allavgrewards = {}
 allavggeneral = {}
 
-for i in range(10):
+for i in range(30):
     trials(i,allavgrewards, allavggeneral, allgradnorms)
 
-with open("results/filteravgrwd.json","w") as fp:
+with open("data/filteravgrwd.json","w") as fp:
     json.dump(allavgrewards, fp)
 
-with open("results/filteravggen.json","w") as fp:
+with open("data/filteravggen.json","w") as fp:
     json.dump(allavggeneral, fp)
 
-with open("results/filtergradnorm.json","w") as fp:
+with open("data/filtergradnorm.json","w") as fp:
     json.dump(allgradnorms, fp)

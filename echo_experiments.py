@@ -19,7 +19,7 @@ def echo_trial(episode_duration, save_file):
     hidden_size = 32
     rho = .99
     plastic = []
-    num_episodes = 100
+    num_episodes = 250
 
     # Setup GHU
     symbols = [str(a) for a in range(num_symbols)]
@@ -73,7 +73,7 @@ def echo_trial(episode_duration, save_file):
 
     # Run optimization
     avg_rewards, avg_general, grad_norms = reinforce(ghu,
-        num_epochs = 100,
+        num_epochs = 200,
         episode_duration = episode_duration,
         training_example = training_example,
         testing_example = testing_example,
@@ -89,14 +89,14 @@ if __name__ == "__main__":
     print("*******************************************************")
 
     durations = range(3,7)
-    num_reps = 10
+    num_reps = 30
     save_base = "results/echo/run_%d_%d.pkl"
     
-    # Run the experiment
-    for dur in durations:
-        for rep in range(num_reps):
-            save_file = save_base % (dur, rep)
-            echo_trial(dur, save_file)
+    # # Run the experiment
+    # for dur in durations:
+    #     for rep in range(num_reps):
+    #         save_file = save_base % (dur, rep)
+    #         echo_trial(dur, save_file)
 
     # Load results
     results = {}
@@ -131,18 +131,23 @@ if __name__ == "__main__":
     pt.savefig('echo_learning_curves.eps')
     pt.show()
     
-    # # Histograms of final rewards
-    # pt.figure(figsize=(4.25,2))
-    # finals = []
-    # for d,dur in enumerate(durations):
-    #     avg_rewards = np.array([results[dur][rep][1]
-    #         for rep in results[dur].keys()]).T
-    #     finals.append(avg_rewards[-1,:])
-    # pt.boxplot(finals, showfliers=False)
-    # pt.title("Final Average Rewards")
-    # pt.ylabel("Reward")
-    # pt.xlabel("Episode duration")
-    # pt.tight_layout()
-    # pt.savefig('echo_finals.eps')
-    # pt.show()
+    # Histograms of final rewards
+    pt.figure(figsize=(4.25,4))
+    # for i,mode in enumerate(["Training", "Testing"]):
+    for i,mode in enumerate([50, 199]):
+        pt.subplot(2,1,i+1)
+        finals = np.empty((num_reps, len(durations)))
+        for d,dur in enumerate(durations):
+            # avg_rewards = np.array([results[dur][rep][i+1]
+            avg_rewards = np.array([results[dur][rep][2]
+                for rep in results[dur].keys()]).T
+            finals[:,d] = avg_rewards[mode,:]
+        pt.boxplot(finals, showfliers=False)
+        if i == 0: pt.title("Average reward on test data")
+        pt.ylabel("Epoch %d" % mode)
+        if i == 1: pt.xlabel("Episode duration")
+        pt.xticks(ticks=range(1, len(durations)+1), labels=durations)
+    pt.tight_layout()
+    pt.savefig('echo_finals.eps')
+    pt.show()
     

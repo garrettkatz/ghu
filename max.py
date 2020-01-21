@@ -13,7 +13,7 @@ def trials(i, avgrew, avggen, gradnorm):
     print("***************************** Trial ",str(i+1)," *******************************")
     
     # Configuration
-    num_symbols = 8
+    num_symbols = 10
     layer_sizes = {"rinp": 32, "rout":32, "rtemp":32}
     hidden_size = 32
     rho = .99
@@ -21,7 +21,7 @@ def trials(i, avgrew, avggen, gradnorm):
     num_episodes = 500
 
     # Setup GHU
-    symbols = [str(a) for a in range(num_symbols+1)]
+    symbols = [str(a) for a in range(num_symbols)]
     pathways, associations = default_initializer( # all to all
         layer_sizes.keys(), symbols)
     codec = Codec(layer_sizes, symbols, rho=rho, ortho=True)
@@ -74,7 +74,7 @@ allgradnorms = {}
 allavgrewards = {}  
 allavggeneral = {}
 
-for i in range(10):
+for i in range(30):
     trials(i, allavgrewards, allavggeneral, allgradnorms)
 
 with open("maxavgrwd.json","w") as fp:
