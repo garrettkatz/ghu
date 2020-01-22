@@ -132,9 +132,9 @@ if __name__ == "__main__":
     pt.show()
     
     # Histograms of final rewards
-    pt.figure(figsize=(4.25,4))
+    pt.figure(figsize=(4.25,3.25))
     # for i,mode in enumerate(["Training", "Testing"]):
-    for i,mode in enumerate([50, 199]):
+    for i,mode in enumerate([49, 199]):
         pt.subplot(2,1,i+1)
         finals = np.empty((num_reps, len(durations)))
         for d,dur in enumerate(durations):
@@ -142,9 +142,9 @@ if __name__ == "__main__":
             avg_rewards = np.array([results[dur][rep][2]
                 for rep in results[dur].keys()]).T
             finals[:,d] = avg_rewards[mode,:]
-        pt.boxplot(finals, showfliers=False)
+        pt.boxplot(finals, showfliers=False, medianprops={"color":"k"})
         if i == 0: pt.title("Average reward on test data")
-        pt.ylabel("Epoch %d" % mode)
+        pt.ylabel("Epoch %d" % (mode+1))
         if i == 1: pt.xlabel("Episode duration")
         pt.xticks(ticks=range(1, len(durations)+1), labels=durations)
     pt.tight_layout()

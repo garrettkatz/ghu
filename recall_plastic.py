@@ -127,10 +127,10 @@ if __name__ == "__main__":
     num_episodes = 5000
     save_base = "results/recall/new/run_%d_%d.pkl"
     
-    # Run the experiment
-    for rep in range(num_reps):
-        save_file = save_base % (num_episodes, rep)
-        recall_trial(num_episodes, save_file)
+    # # Run the experiment
+    # for rep in range(num_reps):
+    #     save_file = save_base % (num_episodes, rep)
+    #     recall_trial(num_episodes, save_file)
     
     # Load results
     results = {}
@@ -144,24 +144,38 @@ if __name__ == "__main__":
     # Plot results
     bg = (.9,.9,.9) # background color
     fg = (.1,.1,.1) # foreground color
-    pt.figure(figsize=(4.25,4.))
+    fig = pt.figure(figsize=(4.25,4.))
+    # gs = fig.add_gridspec(2,2)
 
     pt.subplot(2,1,1)
+    # fig.add_subplot(gs[1,:])
     pt.plot(avg_rewards, c=bg, zorder=0)
-    pt.plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label=("avg of %d reps" % num_reps))
+    pt.plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label=("Avg. over %d trials" % num_reps))
     pt.title("Learning curves (training set)")
     pt.ylabel("Average Reward")
     pt.xlabel("Epoch")
     pt.ylim([-.3,1])
     pt.legend(loc="lower right")
 
-    pt.subplot(2,1,2)
-    pt.hist(R_gen.mean(axis=1), bins=np.linspace(0,1,100), color='w', edgecolor='k')
-    pt.ylabel("Frequency")
-    pt.xlabel("Average reward (test data)")
-    pt.title("Generalization performance after training")
+    # pt.suptitle("Final Performance (Epoch %d)" % avg_rewards.shape[0])
 
+    pt.subplot(2,1,2)
+    # fig.add_subplot(gs[0,0])
+    pt.hist([avg_rewards[-1,:], R_gen.mean(axis=1)], bins=np.linspace(0,1,20),
+        color=['w','k'], edgecolor='k', label=["Train","Test"])
+    pt.ylabel("Frequency")
+    pt.xlabel("Average reward")
+    pt.legend(loc="upper left")
+    pt.title("Final Performance (Epoch %d)" % avg_rewards.shape[0])
+
+    # fig.add_subplot(gs[0,1])
+    # pt.scatter(avg_rewards[-1,:], R_gen.mean(axis=1),
+    #     c='k', marker='+')
+    #     # c=((0,0,0,0),), edgecolor='k', marker='o')
+    # pt.xlim([0,1.1])
+    # pt.ylim([0,1.1])
+    
     pt.tight_layout()
     pt.savefig('recall_curves.eps')
-    # pt.show()
+    pt.show()
 
