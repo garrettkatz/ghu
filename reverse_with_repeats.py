@@ -46,15 +46,12 @@ def reverse_trial(num_episodes, save_file):
     ghu.fill_layers(separator)
 
     # Dataset of all possible input lists
-    # list_symbols = 6
     min_length = 4
     max_length = 4
     episode_duration = 2*max_length
     all_inputs = [np.array(inputs + (separator,))
         for list_length in range(min_length, max_length+1)
-            # for inputs in it.product(symbols[1:list_symbols], repeat=list_length)]
             for inputs in it.product(symbols[1:], repeat=list_length)]
-    # input("%d..." % len(all_inputs))
     split = int(.80*len(all_inputs))
 
     # example generation
@@ -68,7 +65,8 @@ def reverse_trial(num_episodes, save_file):
     # all or nothing reward calculation 
     def reward(ghu, targets, outputs):
         r = np.zeros(len(outputs))
-        outputs = outputs[-len(targets):]
+        outputs = outputs[len(targets)-1:]
+        outputs = np.array([out for out in outputs if out != separator])
         if len(outputs) == len(targets): r[-1] = (outputs == targets).all()
         return r
 
@@ -87,7 +85,7 @@ def reverse_trial(num_episodes, save_file):
 
     # Run optimization
     avg_rewards, _, grad_norms = reinforce(ghu,
-        num_epochs = 400,
+        num_epochs = 500,
         episode_duration = episode_duration,
         training_example = training_example,
         # testing_example = testing_example,
@@ -130,7 +128,7 @@ if __name__ == "__main__":
     # num_episodes = 50
     num_reps = 30
     num_episodes = 5000
-    save_base = "results/big_reverse/len3new/run_%d_%d.pkl"
+    save_base = "results/big_reverse/len4new/run_%d_%d.pkl"
     
     # Run the experiment
     for rep in range(num_reps):
@@ -167,7 +165,7 @@ if __name__ == "__main__":
     pt.title("Generalization performance after training")
 
     pt.tight_layout()
-    # pt.savefig('big_reverse_learning_curves.eps')
-    pt.show()
+    pt.savefig('reverse_curves.eps')
+    # pt.show()
     
 

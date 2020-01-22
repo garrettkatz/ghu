@@ -5,6 +5,7 @@ associated value in rout
 one extra register (rtmp) for key>value learning in rtmp>rinp
 """
 import itertools as it
+import pickle as pk
 import numpy as np
 import matplotlib.pyplot as pt
 from ghu import *
@@ -85,7 +86,7 @@ def recall_trial(num_episodes, save_file):
             
     # Run optimization
     avg_rewards, avg_general, grad_norms = reinforce(ghu,
-        num_epochs = 300,
+        num_epochs = 500,
         episode_duration = episode_duration,
         training_example = training_example,
         testing_example = None,
@@ -122,11 +123,8 @@ def recall_trial(num_episodes, save_file):
 
 if __name__ == "__main__":
 
-
     num_reps = 30
     num_episodes = 5000
-    # num_reps = 10
-    # num_episodes = 8000
     save_base = "results/recall/new/run_%d_%d.pkl"
     
     # Run the experiment
@@ -164,5 +162,6 @@ if __name__ == "__main__":
     pt.title("Generalization performance after training")
 
     pt.tight_layout()
-    # pt.savefig('recall_learning_curves.eps')
-    pt.show()
+    pt.savefig('recall_curves.eps')
+    # pt.show()
+
