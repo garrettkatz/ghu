@@ -8,39 +8,24 @@ from lvd import lvd
 from reinforce import reinforce
 import json 
 
-def trials(i, avgrew, gradnorm):
+def trials(i, avgrew, gradnorm, save_file):
     print("***************************** Trial ",str(i+1),"*******************************")
    
     letters = list('abcd')
     digits = list(map(str,range(len(letters))))
-    #alpha = ["a","b","c"]
-    #layer_sizes = {"rinp": 512, "rout":512, "rtemp":512}
-    hidden_size = 32
-    plastic = []
-    #plastic = ["rtemp>rinp"]
+    plastic = ["rinp<rtmp"]
+    remove_pathways = ["rinp<rout", "rout<rtmp"]
+    num_episodes = 15000
+    #num_episodes = 500
+    hidden_size=32
 
-    num_episodes = 500
-
-    symbols = ["_","+","&"] + letters + digits
+    num_symbols = 3
+    symbols = "abcd"[:num_symbols]  + "0_"+ "1234"[:num_symbols]
     length = getsize(max(len(symbols),32))
-    layer_sizes = {"rinp": length, "rout":length, "rt1":length, "rt2":length}
-    pathways, associations = default_initializer( # all to all
+    layer_sizes = {"rinp": length, "rout":length, "rt1":length, "rt2":length, "m":length}
+    pathways, associations = turing_initializer2( # all to all
         list(layer_sizes.keys()), symbols)
 
-    #associations= associations + [("rt2<rt1","0","up"),("rt1<rt2","1","left"),("rt2<rout","2","down"),("rt1<rout","3","right")]
-    
-    # for i in range(len(associations)):
-    #     associations[i]=list(associations[i])
-    #     if associations[i][0]=="rt2<rt1" and associations[i][1]=="0":
-    #         associations[i][2]="left"
-    #     if associations[i][0]=="rt1<rt2" and associations[i][1]=="1":
-    #         associations[i][2]="up"
-    #     if associations[i][0]=="rt2<rout" and associations[i][1]=="2":
-    #         associations[i][2]="down"
-    #     if associations[i][0]=="rt1<rout" and associations[i][1]=="3":
-    #         associations[i][2]="right"
-    #     associations[i] = tuple(associations[i])
-    #print("NEW associations", associations)
     codec = Codec(layer_sizes, symbols, rho=.999, requires_grad=False,ortho=True)
     controller = Controller(layer_sizes, pathways, hidden_size, plastic)
 
@@ -49,14 +34,8 @@ def trials(i, avgrew, gradnorm):
     ghu.associate(associations)
     
     # Initialize layers
-    separator = "&"
-    for k in layer_sizes.keys():
-        # ghu_init.v[0][k] = codec.encode(k, separator) # !! no good anymore
-        # !! Now we have to repeat the separator for each episode in the batch
-        # !! v[t][k][e,:] is time t, layer k activity for episode e
-        ghu.v[0][k] = tr.repeat_interleave(
-            codec.encode(k, separator).view(1,-1),
-            num_episodes, dim=0)
+    separator = "0"
+    ghu.fill_layers(separator)
 
     def make_dsst_grid(letters, rows, cols):
 
@@ -82,6 +61,8 @@ def trials(i, avgrew, gradnorm):
 
                     result[2*r+1][c+1] = grid[2*r+1][c+1]
                     result[2*r+2][c+1] = pair[grid[2*r+1][c+1]]
+        print(grid)
+        print(result)
 
         #print(newgrid)
         # print(grid)
@@ -108,6 +89,23 @@ def trials(i, avgrew, gradnorm):
         #print(len(inputs),len(targets))  
         return inputs, targets
 
+    def train():
+        keys = list("abc"[:num_symbols])
+        vals = list("123"[:num_symbols])
+        i1,i2,t2 = [],[],[]
+        for i in range(len(keys)):
+            i1.append(keys[i])
+            i1.append(vals[i])
+        for i in range(len(keys)):
+            k = np.random.randint(num_symbols)
+            i2.append(keys[k])
+            t2.append(keys[k])
+            i2.append("_")
+            t2.append(vals[k])
+        inputs = i1 +i2
+        targets = i1+t2
+        return inputs, targets
+
     # reward calculation based on individual steps
     def reward(ghu, targets, outputs):
         # outputs_ = [o for o in outputs if o!="&"]
@@ -131,21 +129,30 @@ def trials(i, avgrew, gradnorm):
             r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
         if len(set(fix))==1:
         	r[-1]-=200
-        r[-1] -= 10*len(blanks) 
+        r[-1] -= 10*len(blanks)
+        wrong = 0
+        for i in range(num_symbols):
+            if outputs[-i].isalpha():
+                wrong +=1
+        r[-1] -= wrong*2
         return r
 
     
     filename = "Rdsst2"+str(i+1)+".png"
     # Optimization settings
-    avg_rewards, grad_norms = reinforce(
+    avg_rewards, avg_general, grad_norms = reinforce(
         ghu,
         num_epochs = 8000,
-        episode_duration = 36,
-        training_example = training_example,
+        episode_duration = 12,
+        training_example = train,
+        testing_example = None,
         reward = reward,
         task = "dsst",
         learning_rate = .001,
-        verbose=1)
+        distribution_variance_coefficient = .05,
+        # choices=correct_choices, # perfect rewards with this
+        verbose = 1,
+        save_file = save_file)
 
     gradnorm[i+1]=grad_norms.tolist()
     avgrew[i+1]=avg_rewards.tolist()
@@ -168,7 +175,7 @@ allavgrewards = {}
 
 
 for i in range(1):
-    trials(i,allavgrewards, allgradnorms)
+    trials(i,allavgrewards, allgradnorms, "Rdsst2.pkl")
 
 with open("Rdsst2avgrwd.json","w") as fp:
     json.dump(allavgrewards, fp)

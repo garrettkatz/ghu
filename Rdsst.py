@@ -110,12 +110,12 @@ def trials(i, avgrew, gradnorm):
     # Optimization settings
     avg_rewards, grad_norms = reinforce(
         ghu,
-        num_epochs = 8000,
-        episode_duration = 164,
+        num_epochs = 10000,
+        episode_duration = 160,
         training_example = training_example,
         reward = reward,
         task = "dsst",
-        learning_rate = .01,
+        learning_rate = .03,
         verbose=1)
 
     gradnorm[i+1]=grad_norms.tolist()

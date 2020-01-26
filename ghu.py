@@ -67,8 +67,9 @@ class GatedHebbianUnit(nn.Module):
         # return WL, WR
         return dWL, dWR
 
-    def tick(self, detach=True, choices=None):
+    def tick(self, detach=True, choices=None, verbose=0):
         # choices passed to controller
+        if verbose > 0: print("  Controller forward pass...")
         t = len(self.al)
 
         # Controller
@@ -80,41 +81,50 @@ class GatedHebbianUnit(nn.Module):
         self.al[t], self.pl[t] = likelihoods
 
         # Associative recall
+        if verbose > 0: print("  Associative recall...")
         self.v[t+1] = {}
+        WL, WR, rv = {}, {}, {} # accumulate data from different gate choices in different episodes
+        if verbose > 1: print("   Selecting pathways for batch matmul...")
+        for q,qsz in self.layer_sizes.items():
+            # Get largest number of updates to an incoming pathway to layer q
+            qt = max([self.WL[p].shape[-1] for p in self.controller.incoming[q]])
+            # Get largest source layer size in the pathways to layer q
+            rsz = max([self.layer_sizes[self.pathways[p][1]] for p in self.controller.incoming[q]])
+            # Init sufficiently large pathway and source layer tensors
+            WL[q] = tr.zeros(self.batch_size, qsz, qt)
+            WR[q] = tr.zeros(self.batch_size, qt, rsz)
+            rv[q] = tr.zeros(self.batch_size, rsz)
+            # Process all possible incoming pathways
+            for i,p in enumerate(self.controller.incoming[q]):
+                # Get source layer and number of weight updates to current pathway
+                _, r = self.pathways[p] # source layer
+                pt = self.WL[p].shape[-1] # number of updates
+                # Get mask of episodes where current pathway was ungated
+                b = (self.ac[t][q][0] == i).squeeze()
+                # Store weights and source activity from respective episodes
+                WL[q][b, :, :pt], WR[q][b, :pt, :] = self.WL[p][b], self.WR[p][b]
+                rv[q][b, :self.layer_sizes[r]] = self.v[t][r][b]
+        if verbose > 1: print("   Performing matmul...")
         for q in self.layer_sizes.keys():
-            #print("Q",q)
-            # Select out p,r for each batch element to prepare the batch matmul
-            WL_q, WR_q, v_q = [], [], []
-            #print("self.ac[t][q][0]",tr.transpose(self.ac[t][q][0],0,1))
-            for b,i in enumerate(self.ac[t][q][0]):
-                #print("p,r",self.controller.incoming[q][i],self.pathways[self.controller.incoming[q][i]])
-                p = self.controller.incoming[q][i]
-                _, r = self.pathways[p]
-                WL_q.append(self.WL[p][b])
-                WR_q.append(self.WR[p][b])
-                v_q.append(self.v[t][r][b,:])
-            tr.stack(WL_q)
-            tr.stack(WR_q)
-            WL_q, WR_q, v_q = tr.stack(WL_q), tr.stack(WR_q), tr.stack(v_q)
             self.v[t+1][q] = tr.tanh(
-                tr.matmul(WL_q, tr.matmul(WR_q, v_q.unsqueeze(2)))).squeeze(2)
-            #print("Shape",self.v[t+1][q].shape)
-        #print("pc",self.pc)
+                tr.matmul(WL[q], tr.matmul(WR[q], rv[q].unsqueeze(2)))).squeeze(2)
+        
         # Associative learning
+        if verbose > 0: print("  Associative learning...")
         for p in self.pathways.keys():
             q, r = self.pathways[p]
             dWL = tr.zeros(self.batch_size, self.layer_sizes[q], 1)
             dWR = tr.zeros(self.batch_size, 1, self.layer_sizes[r])
             # Select out batch elements where pathway p learns
             if p in self.plastic:
-                print("in plastic")
+                
                 i = self.plastic.index(p)
-                ("pc[t]",self.pc[t][0,:,i])
+                
                 b = (self.pc[t][0,:,i] == 1)
-                print("bb",b.shape)
+                
                 if b.sum() > 0:
                     dWL[b], dWR[b] = self.rehebbian(
-                        self.WL[p][b], self.WR[p][b], self.v[t-1][r][b], self.v[t][q][b])
+                        self.WL[p][b], self.WR[p][b], self.v[t][r][b], self.v[t][q][b])
             self.WL[p] = tr.cat((self.WL[p], dWL), dim=2)
             self.WR[p] = tr.cat((self.WR[p], dWR), dim=1)
 
@@ -137,6 +147,84 @@ class GatedHebbianUnit(nn.Module):
             q,r = self.pathways[p]
             Wv = tr.matmul(self.WL[p][0], tr.matmul(self.WR[p][0], self.codec.encode(r, s).view(-1,1)))
             assert(self.codec.decode(q, Wv.squeeze()) == t)
+
+    def fill_layers(self, symbol):
+        for t in self.v:
+            for k in self.layer_sizes.keys():
+                self.v[t][k] = tr.repeat_interleave(
+                    self.codec.encode(k, symbol).view(1,-1),
+                    self.batch_size, dim=0)
+
+    def run(self, episode_duration, inputs, targets, reward, choices=None, verbose=0):
+        """
+        Run on a batch of episodes and assess rewards
+            episode_duration: number of ticks in each episode
+            inputs[b][t]: input symbol at time t in episode b
+            targets[b]: target output sequence for episode b
+            reward(self, targets, outputs)[t]: reward at time t for given target/output sequences
+            choices: if provided, overwrites randomly sampled choices
+                choices[t][0][q]: pathway selected for recall in layer q at time t
+                choices[t][1][n]: nth pathway with learning on at time t
+        """
+
+        # Encode choices
+        if choices is None: choices = [None]*episode_duration
+        else: choices = [(
+            {q: tr.stack([
+                tr.tensor([self.controller.incoming[q].index(p)])
+                for b in range(self.batch_size)]).reshape(1,self.batch_size,1)
+                for q,p in ac.items()},
+            tr.tensor([
+                [(p in pc) for p in self.plastic]
+                for b in range(self.batch_size)], dtype=tr.float32)
+                .reshape(1,self.batch_size,len(self.plastic)))
+            for (ac, pc) in choices]
+
+        if verbose > 0: print("Encoding episode inputs...")
+        encoded = {}
+        for t in range(len(inputs[0])):
+            if verbose > 1: print(" t=%d..." % t)
+            encoded[t] = tr.stack([
+                self.codec.encode("rinp", inputs[b][t])
+                for b in range(self.batch_size)])
+
+        if verbose > 0: print("Running episodes...")
+        for t in range(episode_duration):
+            if verbose > 1: print(" t=%d..." % t)
+            if t < len(encoded): self.v[t]["rinp"] = encoded[t] # insert input
+            self.tick(choices=choices[t], verbose=verbose-1) # tick
+
+        if verbose > 0: print("Decoding outputs...")
+        outputs = np.empty((self.batch_size, episode_duration), dtype=str)
+        for t in range(episode_duration):
+            if verbose > 1: print(" t=%d..." % t)
+            outputs[:,t] = [
+                self.codec.decode("rout", self.v[t+1]["rout"][b,:])
+                for b in range(self.batch_size)]
+
+        # Assess rewards
+        if verbose > 0: print("Assessing reward...")
+        rewards = np.array([
+            reward(self, targets[b], outputs[b])
+            for b in range(self.batch_size)])
+
+        # Summarize first episode
+        for t in range(episode_duration+1):
+            if verbose > 2: print(" Step %d" % t)
+            if verbose > 2: print(" layers: ",
+                {k: self.codec.decode(k, self.v[t][k][0]) for k in self.layer_sizes.keys()})
+            if t == episode_duration: break
+            if verbose > 2: print(" choices: ",
+                {q: self.controller.incoming[q][ac[0,0].item()] for q,ac in self.ac[t].items()},
+                [pc[0].item() for pc in self.pc[t] if len(self.plastic) > 0])
+            if verbose > 2: print(" likelihoods: ",
+                {q: "%.3f" % al[0,0].item() for q,al in self.al[t].items()},
+                ["%.3f" % pl[0].item() for pl in self.pl[t] if len(self.plastic) > 0])
+            if verbose > 2: print(" Reward=%f)" % rewards[0,t])
+        if verbose > 2: print(" Net reward=%f)" % rewards[0].sum())
+
+        # return results
+        return outputs, rewards
 
 class SGatedHebbianUnit(nn.Module):
     def __init__(self, layer_sizes, pathways, controller, codec, batch_size=1, plastic=[]):
