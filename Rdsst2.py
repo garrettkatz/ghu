@@ -37,57 +37,57 @@ def trials(i, avgrew, gradnorm, save_file):
     separator = "0"
     ghu.fill_layers(separator)
 
-    def make_dsst_grid(letters, rows, cols):
+    # def make_dsst_grid(letters, rows, cols):
 
-        grid = [["+" for c in range(cols+2)] for r in range(2*rows+2)]
-        pair = {}
-        for r in range(rows):
-            for c in range(cols):
-                if r == 0 and c < len(letters):
-                    grid[2*r+1][c+1] = letters[c]
-                    grid[2*r+2][c+1] = str(c)
-                    pair.update({letters[c]:str(c)})
-                else:
-                    grid[2*r+1][c+1] = letters[np.random.randint(len(letters))]
-                    grid[2*r+2][c+1] = "_"
+    #     grid = [["+" for c in range(cols+2)] for r in range(2*rows+2)]
+    #     pair = {}
+    #     for r in range(rows):
+    #         for c in range(cols):
+    #             if r == 0 and c < len(letters):
+    #                 grid[2*r+1][c+1] = letters[c]
+    #                 grid[2*r+2][c+1] = str(c)
+    #                 pair.update({letters[c]:str(c)})
+    #             else:
+    #                 grid[2*r+1][c+1] = letters[np.random.randint(len(letters))]
+    #                 grid[2*r+2][c+1] = "_"
 
-        result = [["+" for c in range(cols+2)] for r in range(2*rows+2)]
-        for r in range(rows):
-            for c in range(cols):
-                if r == 0 and c < len(letters):
-                    result[2*r+1][c+1] = letters[c]
-                    result[2*r+2][c+1] = str(c)
-                else:
+    #     result = [["+" for c in range(cols+2)] for r in range(2*rows+2)]
+    #     for r in range(rows):
+    #         for c in range(cols):
+    #             if r == 0 and c < len(letters):
+    #                 result[2*r+1][c+1] = letters[c]
+    #                 result[2*r+2][c+1] = str(c)
+    #             else:
 
-                    result[2*r+1][c+1] = grid[2*r+1][c+1]
-                    result[2*r+2][c+1] = pair[grid[2*r+1][c+1]]
-        print(grid)
-        print(result)
+    #                 result[2*r+1][c+1] = grid[2*r+1][c+1]
+    #                 result[2*r+2][c+1] = pair[grid[2*r+1][c+1]]
+    #     print(grid)
+    #     print(result)
 
-        #print(newgrid)
-        # print(grid)
-        # print(pair)
-        # print(result)
-        return grid, result
-
-
+    #     #print(newgrid)
+    #     # print(grid)
+    #     # print(pair)
+    #     # print(result)
+    #     return grid, result
 
 
-    def training_example():
-        letters = list('abcd')
-        #make_dsst_grid(letters, 2, len(letters))
-        grid, ansgrid = make_dsst_grid(letters, 2, len(letters))
-        inp, tar = [],[]
-        for item in grid:
-            for i in item:
-                inp.append(i)
-        for item in ansgrid:
-            for i in item:
-                tar.append(i)
-        inputs = np.array(inp) #np.array(act+inp)   
-        targets = np.array(tar) #np.array(["&","&","&","&"]+tar)
-        #print(len(inputs),len(targets))  
-        return inputs, targets
+
+
+    # def training_example():
+    #     letters = list('abcd')
+    #     #make_dsst_grid(letters, 2, len(letters))
+    #     grid, ansgrid = make_dsst_grid(letters, 2, len(letters))
+    #     inp, tar = [],[]
+    #     for item in grid:
+    #         for i in item:
+    #             inp.append(i)
+    #     for item in ansgrid:
+    #         for i in item:
+    #             tar.append(i)
+    #     inputs = np.array(inp) #np.array(act+inp)   
+    #     targets = np.array(tar) #np.array(["&","&","&","&"]+tar)
+    #     #print(len(inputs),len(targets))  
+    #     return inputs, targets
 
     def train():
         keys = list("abc"[:num_symbols])
@@ -131,7 +131,7 @@ def trials(i, avgrew, gradnorm, save_file):
         	r[-1]-=200
         r[-1] -= 10*len(blanks)
         wrong = 0
-        for i in range(num_symbols):
+        for i in [1,3,5]:
             if outputs[-i].isalpha():
                 wrong +=1
         r[-1] -= wrong*2
@@ -148,7 +148,7 @@ def trials(i, avgrew, gradnorm, save_file):
         testing_example = None,
         reward = reward,
         task = "dsst",
-        learning_rate = .001,
+        learning_rate = .01,
         distribution_variance_coefficient = .05,
         # choices=correct_choices, # perfect rewards with this
         verbose = 1,
