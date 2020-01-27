@@ -143,7 +143,7 @@ def trials(i, avgrew, gradnorm, save_file):
     # Optimization settings
     avg_rewards, avg_general, grad_norms = reinforce(
         ghu,
-        num_epochs = 8000,
+        num_epochs = 4000,
         episode_duration = 13,
         training_example = train,
         testing_example = None,
