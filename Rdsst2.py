@@ -15,7 +15,7 @@ def trials(i, avgrew, gradnorm, save_file):
     digits = list(map(str,range(len(letters))))
     plastic = ["rinp<rtmp"]
     remove_pathways = ["rinp<rout", "rout<rtmp"]
-    num_episodes = 15000
+    num_episodes = 5000
     #num_episodes = 500
     hidden_size=32
 
@@ -90,51 +90,52 @@ def trials(i, avgrew, gradnorm, save_file):
     #     return inputs, targets
 
     def train():
-        keys = list("abc"[:num_symbols])
-        vals = list("123"[:num_symbols])
+        keys = np.random.choice(["a","b","c"], size=3, replace=False)
+        
+        vals = np.random.choice(["1","2","3"], size=3, replace=False)
+        lookup = {'a':'1','b':'2','c':'3'}
         i1,i2,t2 = [],[],[]
         for i in range(len(keys)):
+            
             i1.append(keys[i])
-            i1.append(vals[i])
+            i1.append(lookup[keys[i]])
         for i in range(len(keys)):
             k = np.random.randint(num_symbols)
             i2.append(keys[k])
             t2.append(keys[k])
             i2.append("_")
-            t2.append(vals[k])
-        inputs = i1 +i2
-        targets = i1+t2
+            t2.append(lookup[keys[k]])
+        inputs = i1 +['0']+i2
+        targets = i1+['0']+t2
         return inputs, targets
 
     # reward calculation based on individual steps
     def reward(ghu, targets, outputs):
-        # outputs_ = [o for o in outputs if o!="&"]
-        # targets = [t for t in targets if t!="&"]
-        # zeros = [o for o in outputs if o=="&"]
-        # totzeros = len(zeros)
+       
+        # fix = [o for o in outputs if o!="_"]
+        # blanks = [o for o in outputs if o=="_"]
         # r = np.zeros(len(outputs))
-        # if len(outputs_)==0:
-        #     r[-1] -= (len(outputs)+100)
-        # else:
-        #     _,d = lvd(outputs_,targets) 
-        #     for i in range(1,d.shape[0]):
-        #         r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
-        #     r[-1] -= 0.1*totzeros
+        # _,d = lvd(outputs,targets) 
+        # for i in range(1,d.shape[0]):
+        #     r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
+        # if len(set(fix))==1:
+        # 	r[-1]-=200
+        # r[-1] -= 10*len(blanks)
+        # wrong = 0
+        # for i in [1,3,5]:
+        #     if outputs[-i].isalpha():
+        #         wrong +=1
+        # r[-1] -= wrong*2
         # return r
-        fix = [o for o in outputs if o!="_"]
-        blanks = [o for o in outputs if o=="_"]
         r = np.zeros(len(outputs))
-        _,d = lvd(outputs,targets) 
-        for i in range(1,d.shape[0]):
-            r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
-        if len(set(fix))==1:
-        	r[-1]-=200
-        r[-1] -= 10*len(blanks)
-        wrong = 0
-        for i in [1,3,5]:
-            if outputs[-i].isalpha():
-                wrong +=1
-        r[-1] -= wrong*2
+        countcorrect, countwrong = 0,0
+        for i in range(len(outputs)):
+            if outputs[i]==targets[i]:
+                countcorrect+=1
+            else:
+                countwrong+=-1
+        
+        r[-1]=countwrong+countcorrect
         return r
 
     
@@ -143,7 +144,7 @@ def trials(i, avgrew, gradnorm, save_file):
     avg_rewards, avg_general, grad_norms = reinforce(
         ghu,
         num_epochs = 8000,
-        episode_duration = 12,
+        episode_duration = 13,
         training_example = train,
         testing_example = None,
         reward = reward,
