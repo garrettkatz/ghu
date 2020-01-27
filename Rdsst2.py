@@ -15,7 +15,7 @@ def trials(i, avgrew, gradnorm, save_file):
     digits = list(map(str,range(len(letters))))
     plastic = ["rinp<rtmp"]
     remove_pathways = ["rinp<rout", "rout<rtmp"]
-    num_episodes = 5000
+    num_episodes = 10000
     #num_episodes = 500
     hidden_size=32
 
@@ -112,31 +112,31 @@ def trials(i, avgrew, gradnorm, save_file):
     # reward calculation based on individual steps
     def reward(ghu, targets, outputs):
        
-        # fix = [o for o in outputs if o!="_"]
-        # blanks = [o for o in outputs if o=="_"]
-        # r = np.zeros(len(outputs))
-        # _,d = lvd(outputs,targets) 
-        # for i in range(1,d.shape[0]):
-        #     r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
-        # if len(set(fix))==1:
-        # 	r[-1]-=200
-        # r[-1] -= 10*len(blanks)
-        # wrong = 0
-        # for i in [1,3,5]:
-        #     if outputs[-i].isalpha():
-        #         wrong +=1
-        # r[-1] -= wrong*2
-        # return r
+        fix = [o for o in outputs if o!="_"]
+        blanks = [o for o in outputs if o=="_"]
         r = np.zeros(len(outputs))
-        countcorrect, countwrong = 0,0
-        for i in range(len(outputs)):
-            if outputs[i]==targets[i]:
-                countcorrect+=1
-            else:
-                countwrong+=-1
-        
-        r[-1]=countwrong+countcorrect
+        _,d = lvd(outputs,targets) 
+        for i in range(1,d.shape[0]):
+            r[-1] += 1. if (i < d.shape[1] and d[i,i] == d[i-1,i-1]) else -1.
+        if len(set(fix))==1:
+        	r[-1]-=200
+        r[-1] -= 10*len(blanks)
+        wrong = 0
+        for i in [1,3,5]:
+            if outputs[-i].isalpha():
+                wrong +=1
+        r[-1] -= wrong*2
         return r
+        # r = np.zeros(len(outputs))
+        # countcorrect, countwrong = 0,0
+        # for i in range(len(outputs)):
+        #     if outputs[i]==targets[i]:
+        #         countcorrect+=1
+        #     else:
+        #         countwrong+=-1
+        
+        # r[-1]=countwrong+countcorrect
+        # return r
 
     
     filename = "Rdsst2"+str(i+1)+".png"
