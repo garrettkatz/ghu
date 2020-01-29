@@ -80,11 +80,11 @@ if __name__ == "__main__":
     num_reps = 30
     save_base = "results/swap/run_%f_%d.pkl"
     
-    # # Run the experiment
-    # for dvc in dvcs:
-    #     for rep in range(num_reps):
-    #         save_file = save_base % (dvc, rep)
-    #         swap_trial(dvc, save_file)
+    # Run the experiment
+    for dvc in dvcs:
+        for rep in range(num_reps):
+            save_file = save_base % (dvc, rep)
+            swap_trial(dvc, save_file)
 
     # Load results
     # dvcs = [0., .0005, 0.001, .005, 0.01, .05, 0.1, .5, 1.]
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     
     pt.tight_layout()
     pt.savefig("swap_curves.eps")
-    pt.show()
+    # pt.show()
    
     
     ### Old dvc plots    

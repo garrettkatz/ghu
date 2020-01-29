@@ -127,10 +127,10 @@ if __name__ == "__main__":
     num_episodes = 5000
     save_base = "results/recall/new/run_%d_%d.pkl"
     
-    # # Run the experiment
-    # for rep in range(num_reps):
-    #     save_file = save_base % (num_episodes, rep)
-    #     recall_trial(num_episodes, save_file)
+    # Run the experiment
+    for rep in range(num_reps):
+        save_file = save_base % (num_episodes, rep)
+        recall_trial(num_episodes, save_file)
     
     # Load results
     results = {}

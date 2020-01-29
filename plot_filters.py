@@ -34,5 +34,5 @@ for sp, vari in enumerate(variant):
     
 pt.tight_layout()
 pt.savefig("filter_curves.eps")
-pt.show()
+# pt.show()
     

@@ -92,11 +92,11 @@ if __name__ == "__main__":
     num_reps = 30
     save_base = "results/echo/run_%d_%d.pkl"
     
-    # # Run the experiment
-    # for dur in durations:
-    #     for rep in range(num_reps):
-    #         save_file = save_base % (dur, rep)
-    #         echo_trial(dur, save_file)
+    # Run the experiment
+    for dur in durations:
+        for rep in range(num_reps):
+            save_file = save_base % (dur, rep)
+            echo_trial(dur, save_file)
 
     # Load results
     results = {}

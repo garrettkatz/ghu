@@ -77,13 +77,13 @@ allavggeneral = {}
 for i in range(30):
     trials(i, allavgrewards, allavggeneral, allgradnorms)
 
-with open("maxavgrwd.json","w") as fp:
+with open("data/maxavgrwd.json","w") as fp:
     json.dump(allavgrewards, fp)
 
-with open("maxavggen.json","w") as fp:
+with open("data/maxavggen.json","w") as fp:
     json.dump(allavggeneral, fp)
 
-with open("maxgradnorm.json","w") as fp:
+with open("data/maxgradnorm.json","w") as fp:
     json.dump(allgradnorms, fp)
         
         
