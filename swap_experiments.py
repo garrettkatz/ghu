@@ -80,11 +80,11 @@ if __name__ == "__main__":
     num_reps = 30
     save_base = "results/swap/run_%f_%d.pkl"
     
-    # Run the experiment
-    for dvc in dvcs:
-        for rep in range(num_reps):
-            save_file = save_base % (dvc, rep)
-            swap_trial(dvc, save_file)
+    # # Run the experiment
+    # for dvc in dvcs:
+    #     for rep in range(num_reps):
+    #         save_file = save_base % (dvc, rep)
+    #         swap_trial(dvc, save_file)
 
     # Load results
     # dvcs = [0., .0005, 0.001, .005, 0.01, .05, 0.1, .5, 1.]
@@ -103,25 +103,27 @@ if __name__ == "__main__":
 
     bg = (.9,.9,.9) # background color
     fg = (.1, .1, .1) # foreground color
-    pt.figure(figsize=(4.25,3.85))
-    pt.subplot(3,1,1)
+    numsp = 2 # 3
+    # pt.figure(figsize=(4.25,3.85))
+    pt.figure(figsize=(4.25,2.6))
+    pt.subplot(numsp,1,1)
     pt.plot(avg_rewards, c=bg, zorder=0)
     pt.plot(avg_rewards.mean(axis=1), c=fg, zorder=1, label = "Average over %d trials" % len(results))
     pt.legend(loc="lower right")
     pt.ylabel("Train Rewards")
 
-    pt.subplot(3,1,2)
+    pt.subplot(numsp,1,2)
     pt.plot(avg_general, c=bg, zorder=0)
     pt.plot(avg_general.mean(axis=1), c=fg, zorder=1) #, label = "Average over %d trials" % len(results))
     # pt.legend(loc="lower right")
     pt.ylabel("Test Rewards")
     
-    pt.subplot(3,1,3)
-    pt.plot((avg_rewards-avg_general).T, c=bg, zorder=0)
-    pt.plot((avg_rewards-avg_general).mean(axis=0), c=fg, zorder=1) #, label="Avg. over %d trials" % num_reps)
-    # pt.legend(loc="upper right")
-    pt.ylabel("Train - Test")
-    pt.xlabel("Epoch")
+    # pt.subplot(numsp,1,3)
+    # pt.plot((avg_rewards-avg_general).T, c=bg, zorder=0)
+    # pt.plot((avg_rewards-avg_general).mean(axis=0), c=fg, zorder=1) #, label="Avg. over %d trials" % num_reps)
+    # # pt.legend(loc="upper right")
+    # pt.ylabel("Train - Test")
+    # pt.xlabel("Epoch")
     
     pt.tight_layout()
     pt.savefig("swap_curves.eps")

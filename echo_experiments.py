@@ -92,11 +92,11 @@ if __name__ == "__main__":
     num_reps = 30
     save_base = "results/echo/run_%d_%d.pkl"
     
-    # Run the experiment
-    for dur in durations:
-        for rep in range(num_reps):
-            save_file = save_base % (dur, rep)
-            echo_trial(dur, save_file)
+    # # Run the experiment
+    # for dur in durations:
+    #     for rep in range(num_reps):
+    #         save_file = save_base % (dur, rep)
+    #         echo_trial(dur, save_file)
 
     # Load results
     results = {}
@@ -108,7 +108,7 @@ if __name__ == "__main__":
                 results[dur][rep] = pk.load(f)
     
     # Plot results
-    pt.figure(figsize=(4.25,4.00))
+    pt.figure(figsize=(5.0,3.50))
     bg = (.9,.9,.9) # background color
     for i,mode in enumerate(["Training set", "Testing set"]):
         pt.subplot(2,1,i+1)
@@ -126,7 +126,7 @@ if __name__ == "__main__":
         pt.ylabel(mode)
         if i == 1: pt.xlabel("Epoch")
         pt.ylim([-.5,1])
-        pt.legend(loc="lower right")
+        pt.legend(loc="lower right", ncol=4)
     pt.tight_layout()
     pt.savefig('echo_learning_curves.eps')
     pt.show()
